@@ -14,6 +14,7 @@
 
 #define WHITESPACE "\t\r\n "
 #define MAXARGS    16
+#define CALL_INSN_LEN 5
 
 /* Functions implementing monitor commands */
 int mon_help(int argc, char **argv, struct Trapframe *tf);
@@ -68,11 +69,24 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf) {
     // why this while: (`entry.S`: xor %ebp, %ebp)
     while (rbp != 0) {
         uint64_t *frame = (uint64_t *)rbp;
-
         uint64_t next_rbp = frame[0];
         uint64_t rip      = frame[1];
 
         cprintf("  rbp %016lx  rip %016lx\n", rbp, rip);
+
+        struct Ripdebuginfo info;
+        if (debuginfo_rip(rip, &info) == 0) {
+            uint64_t call_site = rip - CALL_INSN_LEN;
+            uint64_t off = (info.rip_fn_addr && call_site >= info.rip_fn_addr)
+                         ? (call_site - info.rip_fn_addr) : 0;
+            // function name in Ripdebuginfo CAN be NON-NUL-terminated
+            cprintf("    %s:%d: %.*s+%lu\n",
+                    info.rip_file, info.rip_line,
+                    info.rip_fn_namelen, info.rip_fn_name,
+                    (unsigned long)off);
+        } else {
+            cprintf("    <no debug info>\n");
+        }
 
         rbp = next_rbp;
     }
