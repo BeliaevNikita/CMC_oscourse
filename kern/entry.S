@@ -71,6 +71,18 @@ sys_yield:
 
 # LAB 3: Your code here:
 
+.globl sys_exit
+.type  sys_exit, @function
+sys_exit:
+    # We pushed nothing -> 0x00
+    leaq (bootstacktop-0x00)(%rip), %rsp
+
+    # Probably won't hurt
+    xor %ebp, %ebp
+
+    call csys_exit
+    jmp .
+
 #endif
 
 

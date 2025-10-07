@@ -25,7 +25,28 @@ sched_yield(void) {
      * below to halt the cpu */
 
     // LAB 3: Your code here:
-    env_run(&envs[0]);
+
+    int current_env_index = curenv - envs; // MYTODO check types
+    bool found_env_to_switch_to = false;
+
+    for (int i = 1; i < NENV; ++i)
+    {
+        int curretly_viewed_env_index = (i + current_env_index) % NENV;
+        struct Env *curretly_viewed_env = &envs[curretly_viewed_env_index];
+        if (curretly_viewed_env->env_status == ENV_RUNNABLE)
+        {
+            cprintf("Found a new env to run. Switching...\n");
+            env_run(curretly_viewed_env);
+        }
+    }
+
+    if (!found_env_to_switch_to && (curenv->env_status == ENV_RUNNING))
+    {
+        cprintf("No new env to run. Continue running the old one...\n");
+        env_run(curenv); // Not needed but who cares. "Almost a no-op"
+    }
+
+    // env_run(&envs[0]);
 
     cprintf("Halt\n");
 

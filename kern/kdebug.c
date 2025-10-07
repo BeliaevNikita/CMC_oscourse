@@ -112,5 +112,37 @@ find_function(const char *const fname) {
 
     // LAB 3: Your code here:
 
-    return 0;
+    struct Dwarf_Addrs debug_symbols_addresses;
+    load_kernel_dwarf_info(&debug_symbols_addresses);
+
+    uintptr_t function_offset = 0;
+
+    {
+        const int result = address_by_fname(&debug_symbols_addresses, fname, &function_offset);
+        if (result == 0)
+        {
+            return function_offset;
+        }
+    }
+
+    {
+        const int result = naive_address_by_fname(&debug_symbols_addresses, fname, &function_offset);
+        if (result == 0)
+        {
+            return function_offset;
+        }
+    }
+
+    char *uefi_string_table = (char *) uefi_lp->StringTableStart;
+    for (
+        struct Elf64_Sym *symbol_table = (struct Elf64_Sym *) uefi_lp->SymbolTableStart; 
+        symbol_table != (struct Elf64_Sym *) uefi_lp->SymbolTableEnd;
+        ++symbol_table
+        ) {
+        if (!strcmp(&uefi_string_table[symbol_table->st_name], fname)) {
+            function_offset = (uintptr_t) symbol_table->st_value;
+        }
+    }
+
+    return function_offset;
 }
