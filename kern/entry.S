@@ -17,6 +17,9 @@ entry:
     # Save LoadParams in uefi_lp.
     movq %rcx, uefi_lp(%rip)
 
+    # LAB 4: CLI-s
+    cli
+
     # Invoke C code
     call i386_init
     # Should never reach this place
@@ -35,6 +38,9 @@ save_trapframe_trap:
     jmp save_trapframe
 
 save_trapframe_syscall:
+    # LAB 4: CLI-s
+    cli
+
     popq save_trapframe_ret(%rip)
     popq saved_rip(%rip)
     movq %rsp, saved_rsp(%rip)
@@ -74,6 +80,9 @@ sys_yield:
 .globl sys_exit
 .type  sys_exit, @function
 sys_exit:
+    # LAB 4: CLI-s
+    cli
+
     # We pushed nothing -> 0x00
     leaq (bootstacktop-0x00)(%rip), %rsp
 
