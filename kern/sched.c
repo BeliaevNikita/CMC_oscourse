@@ -35,14 +35,14 @@ sched_yield(void) {
         struct Env *curretly_viewed_env = &envs[curretly_viewed_env_index];
         if (curretly_viewed_env->env_status == ENV_RUNNABLE)
         {
-            cprintf("Found a new env to run. Switching...\n");
+            // cprintf("Found a new env to run. Switching...\n");
             env_run(curretly_viewed_env);
         }
     }
 
     if (!found_env_to_switch_to && (curenv->env_status == ENV_RUNNING))
     {
-        cprintf("No new env to run. Continue running the old one...\n");
+        // cprintf("No new env to run. Continue running the old one...\n");
         env_run(curenv); // Not needed but who cares. "Almost a no-op"
     }
 

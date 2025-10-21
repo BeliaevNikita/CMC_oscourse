@@ -12,6 +12,13 @@ static Header base = {.next = (Header *)space, .prev = (Header *)space};
 /* start of free list */
 static Header *freep = NULL;
 
+// LAB 5
+// static struct spinlock afk = {
+// #if trace_spinlock
+//     .name = "alloc_free_lock",
+// #endif
+// };
+
 static void
 check_list(void) {
     asm volatile("cli");
@@ -29,6 +36,9 @@ test_alloc(uint8_t nbytes) {
 
     /* Make allocator thread-safe with the help of spin_lock/spin_unlock. */
     // LAB 5: Your code here:
+
+    // LAB 5
+    // spin_lock(&afk);
 
     size_t nunits = (nbytes + sizeof(Header) - 1) / sizeof(Header) + 1;
 
@@ -58,25 +68,38 @@ test_alloc(uint8_t nbytes) {
                 p += p->size;
                 p->size = nunits;
             }
+            // LAB 5
+            // spin_unlock(&afk);
+
             return (void *)(p + 1);
         }
 
         /* wrapped around free list */
         if (p == freep) {
+            // LAB 5
+            // spin_unlock(&afk);
+
             return NULL;
         }
     }
+
+    // LAB 5
+    // spin_unlock(&afk);
+
+    return NULL;
 }
 
 /* free: put block ap in free list */
 void
 test_free(void *ap) {
-
     /* point to block header */
     Header *bp = (Header *)ap - 1;
 
     /* Make allocator thread-safe with the help of spin_lock/spin_unlock. */
     // LAB 5: Your code here
+
+    // LAB 5
+    // spin_lock(&afk);
 
     /* freed block at start or end of arena */
     Header *p = freep;
@@ -104,4 +127,7 @@ test_free(void *ap) {
     freep = p;
 
     check_list();
+
+    // LAB 5
+    // spin_unlock(&afk);
 }
