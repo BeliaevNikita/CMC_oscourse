@@ -10,6 +10,7 @@
 #include <kern/sched.h>
 #include <kern/kclock.h>
 #include <kern/picirq.h>
+#include <kern/timer.h>
 #include <kern/traceopt.h>
 
 static struct Taskstate ts;
@@ -98,6 +99,7 @@ extern void clock_thdlr(void);
 void
 trap_init(void) {
     // LAB 4: Your code here
+    // LAB 5: Your code here
 
     // Для обработки прерываний следует настроить соответствующий вектор в таблице IDT в функции trap_init(). Обработчик находится в файле trapentry.S
     idt[IRQ_OFFSET + IRQ_CLOCK] = GATE(0, GD_KT, clock_thdlr, 0);
@@ -217,11 +219,13 @@ trap_dispatch(struct Trapframe *tf) {
         }
         return;
     case IRQ_OFFSET + IRQ_CLOCK:
+    case IRQ_OFFSET + IRQ_TIMER:
         // LAB 4: Your code here
 
-        rtc_timer_pic_handle();
-        sched_yield();
+        // rtc_timer_pic_handle();
+        // sched_yield();
 
+        // LAB 5: Your code here
         return;
     default:
         print_trapframe(tf);
