@@ -367,7 +367,7 @@ hpet_enable_interrupts_tim1(void) {
     }
     nmi_enable();
 
-    pic_irq_unmask(IRQ_TIMER);
+    pic_irq_unmask(IRQ_CLOCK);
 }
 
 void
