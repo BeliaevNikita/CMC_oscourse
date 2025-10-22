@@ -198,18 +198,87 @@ static int timer_id = -1;
 static uint64_t timer = 0;
 static uint64_t freq = 0;
 
+int
+_get_timer_id(const char *name) {
+    int local_timer_id = -1;
+    for (int i = 0; i < MAX_TIMERS; ++i)
+    {
+        if (strcmp(timertab[i].timer_name, name) == 0)
+        {
+            local_timer_id = i;
+
+            break;
+        }
+    }
+
+    return local_timer_id;
+}
+
+
 void
 timer_start(const char *name) {
-    (void)timer_started;
-    (void)timer_id;
-    (void)timer;
-    (void)freq;
+    timer_id = _get_timer_id(name);
+    if (timer_id == -1)
+    {
+        // cprintf("MINE: Incorrect timer name\n");
+        print_timer_error();
+
+        return;
+    }
+
+    if (timer_started)
+    {
+        // cprintf("MINE: Timer already started -> no-op\n");
+
+        return;
+    }
+    timer_started = true;
+
+    freq = timertab[timer_id].get_cpu_freq();
+    // cprintf("MINE: %lu\n", freq);
+    // cprintf("MINE: %s\n", timertab[timer_id].timer_name);
+
+    timer = read_tsc();
+
+    // cprintf("MINE: Timer started\n");
 }
 
 void
 timer_stop(void) {
+    if (!timer_started)
+    {
+        // cprintf("MINE: Cannot stop what is not started\n");
+        print_timer_error();
+
+        return;
+    }
+
+    uint64_t current_timer = read_tsc();
+
+    if (freq == 0)
+    {
+        // cprintf("MINE: Timer frequency cannot be 0\n");
+        print_timer_error();
+
+        return;
+    }
+    uint64_t seconds = (current_timer - timer) / freq;
+
+    print_time(seconds);
+
+    timer_started = false;
 }
 
 void
 timer_cpu_frequency(const char *name) {
+    int freq_timer_id = _get_timer_id(name);
+    if (freq_timer_id == -1)
+    {
+        // cprintf("MINE: Incorrect timer name\n");
+        print_timer_error();
+
+        return;
+    }
+
+    // cprintf("MINE: %lu\n", timertab[freq_timer_id].get_cpu_freq());
 }

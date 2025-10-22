@@ -117,18 +117,64 @@ mon_catty(int argc, char **argv, struct Trapframe *tf) {
 /* Implement timer_start (mon_start), timer_stop (mon_stop), timer_freq (mon_frequency) commands. */
 // LAB 5: Your code here:
 
+void
+_print_available_timer_names(void) {
+    bool printed_one = false;
+    for (int i = 0; i < MAX_TIMERS; ++i)
+    {
+        if (timertab[i].timer_name != NULL && timertab[i].get_cpu_freq != NULL)
+        {
+            if (!printed_one)
+            {
+                printed_one = true;
+            }
+            else
+            {
+                cprintf("|");
+            }
+            cprintf("%s", timertab[i].timer_name);
+        }
+    }
+}
+
 int
 mon_start(int argc, char **argv, struct Trapframe *tf) {
+    if (argc != 2)
+    {
+        cprintf("No timer specified. Usage: %s [", argv[0]);
+        _print_available_timer_names();
+        cprintf("]\n");
+
+        return 1;
+    }
+
+    char *timer_name = argv[1];
+    timer_start(timer_name);
+
     return 0;
 }
 
 int
 mon_stop(int argc, char **argv, struct Trapframe *tf) {
+    timer_stop();
+
     return 0;
 }
 
 int
 mon_frequency(int argc, char **argv, struct Trapframe *tf) {
+    if (argc != 2)
+    {
+        cprintf("No timer specified. Usage: %s [", argv[0]);
+        _print_available_timer_names();
+        cprintf("]\n");
+
+        return 1;
+    }
+
+    char *timer_name = argv[1];
+    timer_cpu_frequency(timer_name);
+
     return 0;
 }
 

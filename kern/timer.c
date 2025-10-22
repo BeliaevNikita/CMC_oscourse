@@ -385,9 +385,28 @@ hpet_handle_interrupts_tim1(void) {
  * about pause instruction. */
 uint64_t
 hpet_cpu_frequency(void) {
-    static uint64_t cpu_freq;
+    static uint64_t cpu_freq = 0;
 
     // LAB 5: Your code here
+
+    if (cpu_freq != 0)
+    {
+        return cpu_freq;
+    }
+
+    const uint64_t initial_tsc = read_tsc();
+
+    const uint64_t initial_cnt = hpet_get_main_cnt();
+    const uint64_t SCALE_TO_SECONDS = 100ULL;
+    const uint64_t delta_cnt = hpetFreq / SCALE_TO_SECONDS;
+    const uint64_t final_cnt = initial_cnt + delta_cnt;
+    while (hpet_get_main_cnt() < final_cnt) {
+        asm volatile("pause");
+    }
+
+    const uint64_t final_tsc = read_tsc();
+
+    cpu_freq = (final_tsc - initial_tsc) * SCALE_TO_SECONDS;
 
     return cpu_freq;
 }
@@ -403,9 +422,40 @@ pmtimer_get_timeval(void) {
  *      can be 24-bit or 32-bit. */
 uint64_t
 pmtimer_cpu_frequency(void) {
-    static uint64_t cpu_freq;
+    static uint64_t cpu_freq = 0;
 
     // LAB 5: Your code here
+
+    if (cpu_freq != 0)
+    {
+        return cpu_freq;
+    }
+
+    const uint32_t MASK_32_BIT_CNT_MODE = 1U << 8;
+    FADT *fadt = get_fadt();
+
+    const bool is_32_bit_cnt = ((fadt->Flags) & MASK_32_BIT_CNT_MODE) != 0;
+    const uint32_t mask = is_32_bit_cnt ? 0xFFFFFFFFU : 0x00FFFFFFU;
+
+    const uint64_t initial_tsc = read_tsc();
+
+    const uint32_t initial_timeval = pmtimer_get_timeval();
+    const uint32_t SCALE_TO_SECONDS = 100U;
+    const uint32_t delta_timeval = PM_FREQ / SCALE_TO_SECONDS;
+    while (true) {
+        // https://stackoverflow.com/questions/40731543/implementing-enforcing-wraparound-arithmetic-in-c
+        const uint32_t current_timeval = pmtimer_get_timeval() & mask;
+        const uint32_t elapsed_timeval = (current_timeval - initial_timeval) & mask;
+        if (elapsed_timeval >= delta_timeval) {
+            break;
+        }
+
+        asm volatile("pause");
+    }
+
+    const uint64_t final_tsc = read_tsc();
+
+    cpu_freq = (final_tsc - initial_tsc) * SCALE_TO_SECONDS;
 
     return cpu_freq;
 }
