@@ -230,7 +230,7 @@ timer_start(const char *name) {
     {
         // cprintf("MINE: Timer already started -> no-op\n");
 
-        return;
+        // return;
     }
     timer_started = true;
 
