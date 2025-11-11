@@ -83,6 +83,14 @@ list_init(struct List *list) {
 inline static void __attribute__((always_inline))
 list_append(struct List *list, struct List *new) {
     // LAB 6: Your code here
+
+    struct List *first = list->next;
+
+    new->prev = list;
+    new->next = first;
+
+    first->prev = new;
+    list->next = new;
 }
 
 /*
@@ -92,6 +100,12 @@ list_append(struct List *list, struct List *new) {
 inline static struct List *__attribute__((always_inline))
 list_del(struct List *list) {
     // LAB 6: Your code here
+
+    list->next->prev = list->prev;
+    list->prev->next = list->next;
+
+    // * NOTE: Use list_init() on deleted List element
+    list_init(list);
 
     return list;
 }
@@ -174,7 +188,46 @@ alloc_child(struct Page *parent, bool right) {
 
     // LAB 6: Your code here
 
-    struct Page *new = NULL;
+    if (parent->class == 0) {
+        return NULL;
+    }
+
+    struct Page *new = alloc_descriptor(parent->state);
+    // new->head = head;
+    new->parent = parent;
+    new->class = parent->class - 1;
+    new->refc = (parent->refc == 0) ? 0 : 1;
+
+    if (right) {
+        if (parent->right != NULL)
+        {
+            cprintf("alloc_child: parent already has the right child!\n");
+
+            return parent->right;
+        }
+
+        parent->right = new;
+
+        const uintptr_t new_addr =
+            parent->addr +
+            (uintptr_t) (CLASS_SIZE(new->class) >> CLASS_BASE);
+        if (new_addr < parent->addr) { // overflow
+            panic("alloc_child: overflow in new->addr\n");
+        }
+        new->addr = new_addr;
+    } else {
+        if (parent->left != NULL)
+        {
+            cprintf("alloc_child: parent already has the left child!\n");
+
+            return parent->left;
+        }
+
+        parent->left = new;
+
+        const uintptr_t new_addr = parent->addr;
+        new->addr = new_addr;
+    }
 
     return new;
 }
@@ -307,13 +360,56 @@ attach_region(uintptr_t start, uintptr_t end, enum PageState type) {
         cprintf("Attaching memory region [%08lX, %08lX] with type %d\n", start, end - 1, type);
     int class = 0, res = 0;
 
-    (void)class;
-    (void)res;
+    (void) res;
 
     start = ROUNDDOWN(start, CLASS_SIZE(0));
     end = ROUNDUP(end, CLASS_SIZE(0));
 
     // LAB 6: Your code here
+
+    // // 1-26 KB
+    // // 0-28 KB
+    // // 16, 8, 4
+
+    uintptr_t current_address = start;
+    while (current_address < end) {
+        const uintptr_t remaining = end - current_address;
+        const uintptr_t pages_cnt = remaining >> CLASS_BASE;
+        if (pages_cnt == 0) {
+            break;
+        }
+
+        int64_t max_class = 0;
+        {
+            uintptr_t tmp = pages_cnt;
+            while ((tmp > 1) && (max_class + 1 < MAX_CLASS)) {
+                tmp >>= 1;
+                ++max_class;
+            }
+        }
+
+        int chosen_class = -1;
+        for (class = max_class; class >= 0; --class) {
+            // Check alignment
+            if (current_address & CLASS_MASK(class)) {
+                continue;
+            }
+
+            chosen_class = class;
+
+            break;
+        }
+
+        assert(chosen_class >= 0);
+
+        if (page_lookup(NULL, current_address, chosen_class, type, true) == NULL) {
+            panic("attach_region: failed to page_lookup");
+        }
+
+        current_address += CLASS_SIZE(chosen_class);
+    }
+
+    assert(current_address == end);
 }
 
 /*
@@ -421,9 +517,75 @@ dump_virtual_tree(struct Page *node, int class) {
     // LAB 7: Your code here
 }
 
+static void
+_print_pretty_size(uintptr_t size) {
+    static const char *UNIT_STRINGS[] = {
+        "B",
+        "KB",
+        "MB",
+        "GB",
+    };
+    static const uint64_t UNIT_SIZES[] = {
+        1,
+        KB,
+        MB,
+        GB,
+    };
+
+    assert(
+        (sizeof(UNIT_STRINGS) / sizeof(UNIT_STRINGS[0])) ==
+        (sizeof(UNIT_SIZES) / sizeof(UNIT_SIZES[0]))
+    );
+    const int UNIT_CNT = sizeof(UNIT_STRINGS) / sizeof(UNIT_STRINGS[0]);
+
+    for (int i = UNIT_CNT - 1; i >= 0; --i)
+    {
+        if (size / UNIT_SIZES[i] != 0)
+        {
+            cprintf("%lu %s", size / UNIT_SIZES[i], UNIT_STRINGS[i]);
+            break;
+        }
+    }
+}
+
 void
 dump_memory_lists(void) {
     // LAB 6: Your code here
+
+    cprintf("Free memory:\n");
+    uint64_t sum = 0;
+    for (int i = 0; i < MAX_CLASS; ++i)
+    {
+        struct List *starting_list = &free_classes[i];
+
+        if (list_empty(starting_list))
+        {
+            continue;
+        }
+
+        cprintf("Class %d (size is ", i); 
+        _print_pretty_size(CLASS_SIZE(i));
+        cprintf(")");
+        struct Page *starting_page = (struct Page *) starting_list;
+        cprintf(": [%p]", starting_page);
+
+        struct List *current_list = starting_list->next;
+        int64_t cnt = 1;
+        while ((current_list != NULL) && (current_list != starting_list)) {
+            current_list = current_list->next;
+            ++cnt;
+
+            struct Page *current_page = (struct Page *) current_list;
+            cprintf("-> [%p]", current_page);
+        }
+
+        sum += CLASS_SIZE(i) * cnt;
+        cprintf(".\n");
+    }
+
+    cprintf("Total free: ");
+    _print_pretty_size(sum);
+    cprintf("\n");
 }
 
 
@@ -523,10 +685,14 @@ detect_memory(void) {
     /* Attach first page as reserved memory */
     // LAB 6: Your code here
 
+    attach_region(0, PAGE_SIZE, RESERVED_NODE);
+
     /* Attach kernel and old IO memory
-     * (from IOPHYSMEM to the physical address of end label. end points the the
+     * (from IOPHYSMEM to the physical address of end label. end points to the
      *  end of kernel executable image.)*/
     // LAB 6: Your code here
+
+    attach_region(IOPHYSMEM, PADDR(end), RESERVED_NODE);
 
     /* Detect memory via ether UEFI or CMOS */
     if (uefi_lp && uefi_lp->MemoryMap) {
@@ -554,7 +720,9 @@ detect_memory(void) {
             /* Attach memory described by memory map entry described by start
              * of type type*/
             // LAB 6: Your code here
-            (void)type;
+            uintptr_t start_address = start->PhysicalStart;
+            uintptr_t end_address = start_address + (start->NumberOfPages * EFI_PAGE_SIZE);
+            attach_region(start_address, end_address, type);
 
             start = (void *)((uint8_t *)start + uefi_lp->MemoryMapDescriptorSize);
         }
