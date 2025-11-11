@@ -26,12 +26,12 @@ sched_yield(void) {
 
     // LAB 3: Your code here:
 
-    int current_env_index = curenv - envs; // MYTODO check types
+    int64_t current_env_index = curenv - envs;
     bool found_env_to_switch_to = false;
 
-    for (int i = 1; i < NENV; ++i)
+    for (int64_t i = 1; i < NENV; ++i)
     {
-        int curretly_viewed_env_index = (i + current_env_index) % NENV;
+        int64_t curretly_viewed_env_index = (i + current_env_index) % NENV;
         struct Env *curretly_viewed_env = &envs[curretly_viewed_env_index];
         if (curretly_viewed_env->env_status == ENV_RUNNABLE)
         {
