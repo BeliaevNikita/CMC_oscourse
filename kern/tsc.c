@@ -280,5 +280,5 @@ timer_cpu_frequency(const char *name) {
         return;
     }
 
-    // cprintf("MINE: %lu\n", timertab[freq_timer_id].get_cpu_freq());
+    cprintf("MINE: %lu\n", timertab[freq_timer_id].get_cpu_freq());
 }

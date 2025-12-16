@@ -68,8 +68,14 @@ rtc_timer_pic_handle(void) {
     pic_send_eoi(IRQ_CLOCK);
 }
 
+uint64_t
+rtc_stub(void) {
+    return 0;
+}
+
 struct Timer timer_rtc = {
         .timer_name = "rtc",
+        .get_cpu_freq = rtc_stub,
         .timer_init = rtc_timer_init,
         .enable_interrupts = rtc_timer_pic_interrupt,
         .handle_interrupts = rtc_timer_pic_handle,
