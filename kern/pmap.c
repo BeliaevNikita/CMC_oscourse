@@ -676,33 +676,79 @@ check_virtual_tree(struct Page *page, int class) {
 /*
  * Pretty-print virtual memory tree
  */
+// void
+// dump_virtual_tree(struct Page *node, int class) {
+//     // LAB 7: Your code here
+//
+//     if (node == NULL) {
+//         return;
+//     }
+//
+//     dump_virtual_tree(node->left, class - 1);
+//
+//     for (int i = 0; i < class; i++) {
+//         cprintf(" ");
+//     }
+//
+//     if (node->state == MAPPING_NODE) {
+//         cprintf(
+//             "Mapping node mapped from %lx - %lx, class %d\n",
+//             (uintptr_t)((node->phy->addr << CLASS_BASE)),
+//             (uintptr_t)((node->phy->addr << CLASS_BASE) + CLASS_MASK(node->phy->class)),
+//             class
+//         );
+//     } else if (node->state == INTERMEDIATE_NODE) {
+//         cprintf("Intermediate node, class %d\n", class);
+//     }
+//
+//     dump_virtual_tree(node->right, class - 1);
+// }
+
+/*
+ * Pretty-print virtual memory tree
+ */
 void
 dump_virtual_tree(struct Page *node, int class) {
     // LAB 7: Your code here
+    (void)class; 
 
-    if (node == NULL) {
+    if (!node)
         return;
+
+    dump_virtual_tree(node->left, class);
+
+    int depth = 0;
+    for (struct Page *p = node->parent; p; p = p->parent)
+        depth++;
+
+    for (int i = 0; i < depth; i++)
+        cprintf("  ");
+
+    const char *st = "UNKNOWN";
+    switch (node->state & NODE_TYPE_MASK) {
+    case MAPPING_NODE:      st = "MAPPING";      break;
+    case INTERMEDIATE_NODE: st = "INTERMEDIATE"; break;
+    case PARTIAL_NODE:      st = "PARTIAL";      break;
+    case ALLOCATABLE_NODE:  st = "ALLOCATABLE";  break;
+    case RESERVED_NODE:     st = "RESERVED";     break;
     }
 
-    dump_virtual_tree(node->left, class - 1);
+    cprintf("node=%p state=%s", node, st);
 
-    for (int i = 0; i < class; i++) {
-        cprintf(" ");
+    if ((node->state & NODE_TYPE_MASK) == MAPPING_NODE && node->phy) {
+        struct Page *p = node->phy;
+        physaddr_t pa = page2pa(p);
+        size_t sz = CLASS_SIZE(p->class);
+        cprintf(" -> phys[%08llX, %08llX] class=%u",
+                (unsigned long long)pa,
+                (unsigned long long)(pa + sz - 1),
+                (unsigned)p->class);
     }
+    cprintf("\n");
 
-    if (node->state == MAPPING_NODE) {
-        cprintf(
-            "Mapping node mapped from %lx - %lx, class %d\n",
-            (uintptr_t)((node->phy->addr << CLASS_BASE)),
-            (uintptr_t)((node->phy->addr << CLASS_BASE) + CLASS_MASK(node->phy->class)),
-            class
-        );
-    } else if (node->state == INTERMEDIATE_NODE) {
-        cprintf("Intermediate node, class %d\n", class);
-    }
-
-    dump_virtual_tree(node->right, class - 1);
+    dump_virtual_tree(node->right, class);
 }
+
 
 static void
 _print_pretty_size(uintptr_t size) {
@@ -783,50 +829,119 @@ dump_memory_lists(void) {
  * NOTE: Use dump_entry().
  * NOTE: Don't forget about PTE_PS
  */
+// void
+// dump_page_table(pte_t *pml4) {
+//     uintptr_t addr = 0;
+//     cprintf("Page table:\n");
+//     // LAB 7: Your code here
+//     (void)addr;
+//
+//     for (int i = 0; i < PML4_ENTRY_COUNT; ++i) {
+//         if (pml4[i] & PTE_P) {
+//             dump_entry(pml4[i], 512 * GB, 0);
+//         }
+//
+//         pdpe_t *pdp = KADDR(PTE_ADDR(pml4[i]));
+//
+//         for (int j = 0; j < PDP_ENTRY_COUNT; ++j) {
+//             if (pdp[j] & PTE_P) {
+//                 dump_entry(pdp[j], 1 * GB, pdp[j] & PTE_PS);
+//             }
+//
+//             if (pdp[j] & PTE_PS) {
+//                 continue;
+//             }
+//
+//             pde_t *pd = KADDR(PTE_ADDR(pdp[j]));
+//
+//             for (int k = 0; k < PD_ENTRY_COUNT; ++k) {
+//                 if (pd[k] & PTE_P) {
+//                     dump_entry(pd[k], 2 * MB, pd[k] & PTE_PS);
+//                 }
+//
+//                 if (pd[k] & PTE_PS) {
+//                     continue;
+//                 }
+//
+//                 pte_t *pt = KADDR(PTE_ADDR(pd[k]));
+//
+//                 for (int l = 0; l < PT_ENTRY_COUNT; ++l) {
+//                     if (pt[l] & PTE_P) {
+//                         dump_entry(pt[l], 4 * KB, 1);
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
+
+/*
+ * Pretty-print page table
+ * You can read about the page table
+ * structure in the LAB 7 description
+ * NOTE: Use dump_entry().
+ * NOTE: Don't forget about PTE_PS
+ */
 void
 dump_page_table(pte_t *pml4) {
     uintptr_t addr = 0;
     cprintf("Page table:\n");
     // LAB 7: Your code here
-    (void)addr;
 
-    for (int i = 0; i < PML4_ENTRY_COUNT; ++i) {
-        if (pml4[i] & PTE_P) {
-            dump_entry(pml4[i], 512 * GB, 0);
-        }
+    // Уровень 4: PML4
+    for (size_t i4 = 0; i4 < PML4_ENTRY_COUNT; i4++) {
+        pte_t e4 = pml4[i4];
+        if (!(e4 & PTE_P))
+            continue;
 
-        pdpe_t *pdp = KADDR(PTE_ADDR(pml4[i]));
+        // В PML4 PS не используется — это всегда не-лист
+        dump_entry(e4, 512ULL * GB, false);
 
-        for (int j = 0; j < PDP_ENTRY_COUNT; ++j) {
-            if (pdp[j] & PTE_P) {
-                dump_entry(pdp[j], 1 * GB, pdp[j] & PTE_PS);
-            }
+        // Переход к PDP
+        pte_t *pdp = KADDR(PTE_ADDR(e4));
 
-            if (pdp[j] & PTE_PS) {
+        // Уровень 3: PDP
+        for (size_t i3 = 0; i3 < PDP_ENTRY_COUNT; i3++) {
+            pte_t e3 = pdp[i3];
+            if (!(e3 & PTE_P))
                 continue;
-            }
 
-            pde_t *pd = KADDR(PTE_ADDR(pdp[j]));
+            bool leaf1g = (e3 & PTE_PS) != 0;
+            dump_entry(e3, 1ULL * GB, leaf1g);
 
-            for (int k = 0; k < PD_ENTRY_COUNT; ++k) {
-                if (pd[k] & PTE_P) {
-                    dump_entry(pd[k], 2 * MB, pd[k] & PTE_PS);
-                }
+            if (leaf1g)
+                continue; // 1GB huge page, дальше таблицы нет
 
-                if (pd[k] & PTE_PS) {
+            pte_t *pd = KADDR(PTE_ADDR(e3));
+
+            // Уровень 2: PD
+            for (size_t i2 = 0; i2 < PD_ENTRY_COUNT; i2++) {
+                pte_t e2 = pd[i2];
+                if (!(e2 & PTE_P))
                     continue;
-                }
 
-                pte_t *pt = KADDR(PTE_ADDR(pd[k]));
+                bool leaf2m = (e2 & PTE_PS) != 0;
+                dump_entry(e2, 2ULL * MB, leaf2m);
 
-                for (int l = 0; l < PT_ENTRY_COUNT; ++l) {
-                    if (pt[l] & PTE_P) {
-                        dump_entry(pt[l], 4 * KB, 1);
-                    }
+                if (leaf2m)
+                    continue; // 2MB huge page
+
+                pte_t *pt = KADDR(PTE_ADDR(e2));
+
+                // Уровень 1: PT
+                for (size_t i1 = 0; i1 < PT_ENTRY_COUNT; i1++) {
+                    pte_t e1 = pt[i1];
+                    if (!(e1 & PTE_P))
+                        continue;
+
+                    // Обычная 4KB страница — всегда лист
+                    dump_entry(e1, 4ULL * KB, true);
                 }
             }
         }
     }
+
+    (void)addr;
 }
 
 inline static int

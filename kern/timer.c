@@ -104,96 +104,196 @@ get_rsdp() {
     return rsd_ptr;
 }
 
+// static void *
+// acpi_find_table(const char *sign) {
+//     /*
+//      * This function performs lookup of ACPI table by its signature
+//      * and returns valid pointer to the table mapped somewhere.
+//      *
+//      * It is a good idea to checksum tables before using them.
+//      *
+//      * HINT: Use mmio_map_region/mmio_remap_last_region
+//      * before accessing table addresses
+//      * (Why mmio_remap_last_region is requrired?)
+//      * HINT: RSDP address is stored in uefi_lp->ACPIRoot
+//      * HINT: You may want to distunguish RSDT/XSDT
+//      */
+//     // LAB 5: Your code here:
+//
+//     // https://wiki.osdev.org/ACPI
+//     RSDP *rsd_ptr = get_rsdp();
+//
+//     RSDT *rsdt_ptr;    
+//     if (rsd_ptr->Revision >= 2) {
+//         rsdt_ptr = (RSDT *) mmio_map_region(
+//             (physaddr_t) rsd_ptr->XsdtAddress, 
+//             sizeof(RSDT)
+//         );
+//         
+//         if (strncmp(rsdt_ptr->h.Signature, "XSDT", sizeof(rsdt_ptr->h.Signature))) {
+//             panic("acpi_find_table: invalid XSDT signature\n");
+//         }
+//         
+//         rsdt_ptr = (RSDT *) mmio_remap_last_region(
+//             (physaddr_t) (rsd_ptr->XsdtAddress), 
+//             (void *) (rsd_ptr->XsdtAddress),
+//             sizeof(RSDT),
+//             rsdt_ptr->h.Length
+//         );
+//     } else {
+//         rsdt_ptr = (RSDT *) mmio_map_region(
+//             (physaddr_t) (rsd_ptr->RsdtAddress),
+//             sizeof(RSDT)
+//         );
+//         
+//         if (strncmp(rsdt_ptr->h.Signature, "RSDT", sizeof(rsdt_ptr->h.Signature))) {
+//             panic("acpi_find_table: invalid RSDT signature\n");
+//         }
+//         
+//         rsdt_ptr = (RSDT *) mmio_remap_last_region(
+//             (physaddr_t) (rsd_ptr->RsdtAddress), 
+//             (void *) (uint64_t) (rsd_ptr->RsdtAddress),
+//             sizeof(RSDT),
+//             rsdt_ptr->h.Length
+//         );
+//     }
+//
+//     if (!is_valid_checksum((uint8_t *) rsdt_ptr, rsdt_ptr->h.Length)) {
+//         panic("acpi_find_table: invalid RSDT/XSDT checksum\n");
+//     }
+//
+//     // https://wiki.osdev.org/RSDT#Other_fields 4 and 8 constants
+//     size_t sdt_num = rsdt_ptr->h.Length - sizeof(ACPISDTHeader);
+//     if (rsd_ptr->Revision >= 2) {
+//         sdt_num /= 8;
+//     } else {
+//         sdt_num /= 4;
+//     }
+//
+//     for (size_t i = 0; i < sdt_num; ++i) {
+//         ACPISDTHeader *hdr = (ACPISDTHeader *) mmio_map_region(
+//             rsdt_ptr->PointerToOtherSDT[i], 
+//             sizeof(ACPISDTHeader)
+//         );
+//
+//         if (hdr == NULL/*???????????????????????????????????????????????????????!!!!!!!!!!!!!!!!!!!!*/)
+//         {
+//             // cprintf("acpi_find_table: no ACPISDTHeader");
+//
+//             continue;
+//         }
+//         
+//         if (!strncmp(hdr->Signature, sign, sizeof(hdr->Signature))) {
+//             if (!is_valid_checksum((uint8_t *) hdr, hdr->Length)) {
+//                 panic("acpi_find_table: invalid %s header checksum\n", sign);
+//             }
+//
+//             return hdr;
+//         }
+//     }
+//
+//     return NULL;
+// }
+
+static bool
+acpi_checksum_ok(const void *addr, size_t len) {
+    const uint8_t *p = (const uint8_t *)addr;
+    uint8_t s = 0;
+    for (size_t i = 0; i < len; i++)
+        s = (uint8_t)(s + p[i]);
+    return s == 0;
+}
+
+static ACPISDTHeader *
+map_sdt_full(physaddr_t pa) {
+    ACPISDTHeader *h = (ACPISDTHeader *)mmio_map_region(pa, sizeof(ACPISDTHeader));
+    if (!h)
+        return NULL;
+
+    uint32_t len = h->Length;
+    if (len < sizeof(ACPISDTHeader))
+        return NULL;
+
+    h = (ACPISDTHeader *)mmio_remap_last_region(pa, h, sizeof(ACPISDTHeader), len);
+    if (!h)
+        return NULL;
+
+    if (!acpi_checksum_ok(h, len))
+        return NULL;
+
+    return h;
+}
+
 static void *
 acpi_find_table(const char *sign) {
-    /*
-     * This function performs lookup of ACPI table by its signature
-     * and returns valid pointer to the table mapped somewhere.
-     *
-     * It is a good idea to checksum tables before using them.
-     *
-     * HINT: Use mmio_map_region/mmio_remap_last_region
-     * before accessing table addresses
-     * (Why mmio_remap_last_region is requrired?)
-     * HINT: RSDP address is stored in uefi_lp->ACPIRoot
-     * HINT: You may want to distunguish RSDT/XSDT
-     */
-    // LAB 5: Your code here:
+    // 1) Map RSDP
+    physaddr_t rsdp_pa = (physaddr_t)uefi_lp->ACPIRoot;
+    RSDP *rsdp = (RSDP *)mmio_map_region(rsdp_pa, sizeof(RSDP));
+    if (!rsdp)
+        return NULL;
 
-    // https://wiki.osdev.org/ACPI
-    RSDP *rsd_ptr = get_rsdp();
+    if (memcmp(rsdp->Signature, "RSD PTR ", 8) != 0)
+        return NULL;
 
-    RSDT *rsdt_ptr;    
-    if (rsd_ptr->Revision >= 2) {
-        rsdt_ptr = (RSDT *) mmio_map_region(
-            (physaddr_t) rsd_ptr->XsdtAddress, 
-            sizeof(RSDT)
-        );
-        
-        if (strncmp(rsdt_ptr->h.Signature, "XSDT", sizeof(rsdt_ptr->h.Signature))) {
-            panic("acpi_find_table: invalid XSDT signature\n");
-        }
-        
-        rsdt_ptr = (RSDT *) mmio_remap_last_region(
-            (physaddr_t) (rsd_ptr->XsdtAddress), 
-            (void *) (rsd_ptr->XsdtAddress),
-            sizeof(RSDT),
-            rsdt_ptr->h.Length
-        );
-    } else {
-        rsdt_ptr = (RSDT *) mmio_map_region(
-            (physaddr_t) (rsd_ptr->RsdtAddress),
-            sizeof(RSDT)
-        );
-        
-        if (strncmp(rsdt_ptr->h.Signature, "RSDT", sizeof(rsdt_ptr->h.Signature))) {
-            panic("acpi_find_table: invalid RSDT signature\n");
-        }
-        
-        rsdt_ptr = (RSDT *) mmio_remap_last_region(
-            (physaddr_t) (rsd_ptr->RsdtAddress), 
-            (void *) (uint64_t) (rsd_ptr->RsdtAddress),
-            sizeof(RSDT),
-            rsdt_ptr->h.Length
-        );
-    }
+    // RSDP v1 checksum: first 20 bytes
+    if (!acpi_checksum_ok(rsdp, 20))
+        return NULL;
 
-    if (!is_valid_checksum((uint8_t *) rsdt_ptr, rsdt_ptr->h.Length)) {
-        panic("acpi_find_table: invalid RSDT/XSDT checksum\n");
-    }
+    // 2) Prefer XSDT if available (Revision >= 2)
+    if (rsdp->Revision >= 2 && rsdp->XsdtAddress) {
+        physaddr_t xsdt_pa = (physaddr_t)rsdp->XsdtAddress;
+        ACPISDTHeader *xsdt = map_sdt_full(xsdt_pa);
+        if (xsdt && memcmp(xsdt->Signature, "XSDT", 4) == 0) {
+            uint32_t len = xsdt->Length;
+            if (len >= sizeof(ACPISDTHeader)) {
+                size_t n = (len - sizeof(ACPISDTHeader)) / 8;
+                const uint8_t *ents = (const uint8_t *)xsdt + sizeof(ACPISDTHeader);
 
-    // https://wiki.osdev.org/RSDT#Other_fields 4 and 8 constants
-    size_t sdt_num = rsdt_ptr->h.Length - sizeof(ACPISDTHeader);
-    if (rsd_ptr->Revision >= 2) {
-        sdt_num /= 8;
-    } else {
-        sdt_num /= 4;
-    }
+                for (size_t i = 0; i < n; i++) {
+                    uint64_t entry;
+                    memcpy(&entry, ents + i * 8, sizeof(entry));   // no misaligned load
+                    physaddr_t pa = (physaddr_t)entry;
 
-    for (size_t i = 0; i < sdt_num; ++i) {
-        ACPISDTHeader *hdr = (ACPISDTHeader *) mmio_map_region(
-            rsdt_ptr->PointerToOtherSDT[i], 
-            sizeof(ACPISDTHeader)
-        );
+                    ACPISDTHeader *sdt = map_sdt_full(pa);
+                    if (!sdt)
+                        continue;
 
-        if (hdr == NULL/*???????????????????????????????????????????????????????!!!!!!!!!!!!!!!!!!!!*/)
-        {
-            // cprintf("acpi_find_table: no ACPISDTHeader");
-
-            continue;
-        }
-        
-        if (!strncmp(hdr->Signature, sign, sizeof(hdr->Signature))) {
-            if (!is_valid_checksum((uint8_t *) hdr, hdr->Length)) {
-                panic("acpi_find_table: invalid %s header checksum\n", sign);
+                    if (memcmp(sdt->Signature, sign, 4) == 0)
+                        return sdt;
+                }
             }
-
-            return hdr;
         }
+    }
+
+    // 3) Fallback to RSDT (32-bit entries)
+    if (!rsdp->RsdtAddress)
+        return NULL;
+
+    physaddr_t rsdt_pa = (physaddr_t)rsdp->RsdtAddress;
+    ACPISDTHeader *rsdt = map_sdt_full(rsdt_pa);
+    if (!rsdt || memcmp(rsdt->Signature, "RSDT", 4) != 0)
+        return NULL;
+
+    uint32_t len = rsdt->Length;
+    size_t n = (len - sizeof(ACPISDTHeader)) / 4;
+    const uint8_t *ents = (const uint8_t *)rsdt + sizeof(ACPISDTHeader);
+
+    for (size_t i = 0; i < n; i++) {
+        uint32_t entry32;
+        memcpy(&entry32, ents + i * 4, sizeof(entry32));        // safe even if packed
+        physaddr_t pa = (physaddr_t)entry32;
+
+        ACPISDTHeader *sdt = map_sdt_full(pa);
+        if (!sdt)
+            continue;
+
+        if (memcmp(sdt->Signature, sign, 4) == 0)
+            return sdt;
     }
 
     return NULL;
 }
+
 
 /* Obtain and map FADT ACPI table address. */
 FADT *
@@ -208,12 +308,12 @@ get_fadt(void) {
         panic("get_fadt: couldn't find FADT\n");
     }
 
-    fadt_ptr = (FADT *) mmio_remap_last_region(
-        (physaddr_t) fadt_ptr,
-        (void *) fadt_ptr,
-        sizeof(ACPISDTHeader), 
-        fadt_ptr->h.Length
-    );
+    // fadt_ptr = (FADT *) mmio_remap_last_region(
+    //     (physaddr_t) fadt_ptr,
+    //     (void *) fadt_ptr,
+    //     sizeof(ACPISDTHeader), 
+    //     fadt_ptr->h.Length
+    // );
     
     return fadt_ptr;
 }
@@ -229,12 +329,12 @@ get_hpet(void) {
         panic("get_hpet: couldn't find HPET\n");
     }
 
-    hpet_ptr = (HPET *) mmio_remap_last_region(
-        (physaddr_t) hpet_ptr,
-        (void *) hpet_ptr,
-        sizeof(ACPISDTHeader), 
-        hpet_ptr->h.Length
-    );
+    // hpet_ptr = (HPET *) mmio_remap_last_region(
+    //     (physaddr_t) hpet_ptr,
+    //     (void *) hpet_ptr,
+    //     sizeof(ACPISDTHeader), 
+    //     hpet_ptr->h.Length
+    // );
     
     return hpet_ptr;
 }
