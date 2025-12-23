@@ -43,7 +43,20 @@ static uint32_t uefi_stride;
 static uint32_t crt_rows;
 static uint32_t crt_cols;
 static uint32_t crt_size;
-static uint16_t crt_pos;
+
+/*
+ * Run virt on commit
+ *     d7579ad5e75780c746d3802a0fc89559dadbc76a
+ * UBSAN: Undefined Behavior in kern/console.c:231:17 (crt_pos += crt_cols), unsigned integer truncation from 'uint32_t' (UBSAN: Undefined Behavior in kern/console.c:243:16 (crt_pos++), signed integer truncation from 'int' to 'uint16_t' (aka 'unsigned short')
+aka 'unsigned int') to 'uint16_t' (aka 'unsigned short')
+ *
+ * This strange output (duplicated aka)
+ * is probably caused by long-long output overflowing this cursor
+static uint16_t -> uint32_t crt_pos;
+ * UNDO IF CONSOLE BREAKS!!!
+ */
+static uint32_t crt_pos = 0;
+
 static uint32_t *crt_buf = (uint32_t *)FRAMEBUFFER;
 
 static bool serial_exists;
