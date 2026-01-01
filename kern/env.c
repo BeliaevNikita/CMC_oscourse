@@ -95,17 +95,43 @@ env_init(void) {
      * kzalloc_region() only works with current_space != NULL */
     // LAB 8: Your code here
 
+    assert(current_space != NULL); // REMOVE IF BREAKS STH!!!
+
+    // const size_t envs_size = ROUNDUP(sizeof(struct Env) * NENV, PAGE_SIZE);
+    const size_t envs_size = UENVS_SIZE;
+
+    envs = (struct Env *) kzalloc_region(envs_size);
+    if (envs == NULL) {
+        panic("env_init: kzalloc_region returned NULL!\n");
+    }
+    memset(envs, 0, envs_size);
+
     /* Map envs to UENVS read-only,
      * but user-accessible (with PROT_USER_ set) */
     // LAB 8: Your code here
+
+    if
+    (
+        map_region
+        (
+            current_space,
+            UENVS,
+            &kspace,
+            (uintptr_t) envs,
+            envs_size,
+            PROT_USER_ | PROT_R
+        )
+        != 0
+    ) {
+        panic("env_init: Unable to map memory!\n");
+    }
 
     /* Set up envs array */
 
     // LAB 3: Your code here
 
-    if (envs == NULL)
-    {
-        panic("No place to put new envs");
+    if (envs == NULL) {
+        panic("env_init: No place to put new envs!\n");
     }
 
     env_free_list = &envs[0];
@@ -320,6 +346,7 @@ static int
 load_icode(struct Env *env, uint8_t *binary, size_t size) {
     // LAB 3: Your code here
     // LAB 8: Your code here
+    // MYTODO: CHECK IT!!!
     struct Elf *elf_image = (struct Elf *) binary;
 
     if (elf_image->e_magic != ELF_MAGIC)
@@ -350,6 +377,8 @@ load_icode(struct Env *env, uint8_t *binary, size_t size) {
         return -E_INVALID_EXE;
     }
 
+    switch_address_space(&env->address_space); // Added in LAB 8
+
     struct Proghdr *program_headers = (struct Proghdr *) ((uint64_t) binary + elf_image->e_phoff);
     uintptr_t image_start = (uintptr_t) binary, image_end = (uintptr_t) binary + size;
 
@@ -364,20 +393,82 @@ load_icode(struct Env *env, uint8_t *binary, size_t size) {
             return -E_INVALID_EXE;
         }
 
+        // memcpy(
+        //     (void *) program_headers[i].p_va,
+        //     (void *) ((uint64_t)binary + program_headers[i].p_offset),
+        //     (size_t)program_headers[i].p_filesz
+        // );
+        // memset(
+        //     (void *) (program_headers[i].p_va + program_headers[i].p_filesz),
+        //     0,
+        //     (size_t) (program_headers[i].p_memsz - program_headers[i].p_filesz)
+        // );
+
+        // Added in LAB 8
+        // MYTODO
+        uintptr_t rounded_addr = ROUNDDOWN(program_headers[i].p_va, PAGE_SIZE);
+        size_t rounded_size = ROUNDUP(program_headers[i].p_memsz, PAGE_SIZE);
+
+        // memset((void *)(phs[i].p_va + phs[i].p_filesz), 0, (size_t)(phs[i].p_memsz - phs[i].p_filesz));
+
+        if (map_region(current_space, rounded_addr, NULL, 0, rounded_size, PROT_RWX | PROT_USER_ | ALLOC_ZERO)) {
+            cprintf("load_icode: failed to map region [%lx, %lx]\n", rounded_addr, rounded_addr + rounded_size - 1);
+            switch_address_space(&kspace);
+
+            return -E_INVALID_EXE;
+        }
+
+        // memcpy((void *)phs[i].p_va, (void *)((uint64_t)binary + phs[i].p_offset), (size_t)phs[i].p_filesz);
         memcpy(
             (void *) program_headers[i].p_va,
-            (void *) ((uint64_t)binary + program_headers[i].p_offset),
-            (size_t)program_headers[i].p_filesz
+            (void *) ((uint64_t) binary + program_headers[i].p_offset),
+            (size_t) program_headers[i].p_filesz
         );
         memset(
             (void *) (program_headers[i].p_va + program_headers[i].p_filesz),
             0,
             (size_t) (program_headers[i].p_memsz - program_headers[i].p_filesz)
         );
+
+        if (image_start > (uintptr_t) program_headers[i].p_va) {
+            image_start = (uintptr_t) program_headers[i].p_va;
+        }
+
+        if (image_end < (uintptr_t) (program_headers[i].p_va + program_headers[i].p_filesz)) {
+            image_end = (uintptr_t) (program_headers[i].p_va + program_headers[i].p_filesz);
+        }
     }
 
+    // env->env_tf.tf_rip = elf_image->e_entry;
+    // bind_functions(env, binary, size, image_start, image_end);
+    uintptr_t stack_addr = (uintptr_t) (USER_STACK_TOP - USER_STACK_SIZE);
+    if
+    (
+        map_region
+        (
+            &env->address_space,
+            stack_addr,
+            NULL,
+            0,
+            USER_STACK_SIZE,
+            PROT_R | PROT_W | PROT_USER_ | ALLOC_ZERO
+        )
+    )
+    {
+        cprintf("load_icode: failed to map user stack\n");
+        // switch_address_space(&kspace);
+
+        return -E_INVALID_EXE;
+    }
+
+    switch_address_space(&kspace);
+
     env->env_tf.tf_rip = elf_image->e_entry;
-    bind_functions(env, binary, size, image_start, image_end);
+#ifdef CONFIG_KSPACE
+    if (bind_functions(env, binary, size, image_start, image_end)) {
+        panic("load_icode: bind_functions has failed\n");
+    }
+#endif
 
     // COMMENT IF NOT WORKING
     env->binary = binary;
@@ -395,20 +486,21 @@ void
 env_create(uint8_t *binary, size_t size, enum EnvType type) {
     // LAB 3: Your code here
     // LAB 8: Your code here
+    // MYTODO: CHECK IT!!!
 
     struct Env *newenv = NULL;
 
     {
         int result = env_alloc(&newenv, /*parent_id=*/0, type);
         if (result != 0) {
-            panic("env_create: can't allocate env, %i", result);
+            panic("env_create: can't allocate env, %i\n", result);
         }
     }
 
     {
         int result = load_icode(newenv, binary, size);
         if (result != 0) {
-            panic("env_create: can't load binary, %i", result);
+            panic("env_create: can't load binary, %i\n", result);
         }
     }
 
@@ -454,18 +546,23 @@ env_destroy(struct Env *env) {
      * it traps to the kernel. */
 
     // LAB 3: Your code here
+    if (env == NULL) {
+        panic("env_destroy: can't destroy `NULL` env\n");
+    }
+
+    env->env_status = ENV_DYING;
+
+    env_free(env);
+    if (env == curenv) {
+        sched_yield();
+    }
 
     /* Reset in_page_fault flags in case *current* environment
      * is getting destroyed after performing invalid memory access. */
     // LAB 8: Your code here
+    // MYTODO: CHECK IT!!!
+    in_page_fault = 0;
 
-    if (env == NULL)
-    {
-        panic("env_destroy: can't destroy `NULL` env\n");
-    }
-
-    env_free(env);
-    sched_yield();
 }
 
 #ifdef CONFIG_KSPACE
@@ -538,6 +635,55 @@ env_pop_tf(struct Trapframe *tf) {
  *    and make sure you have set the relevant parts of
  *    env->env_tf to sensible values.
  */
+// _Noreturn void
+// env_run(struct Env *env) {
+//     assert(env);
+//
+//     if (trace_envs_more) {
+//         const char *state[] = {"FREE", "DYING", "RUNNABLE", "RUNNING", "NOT_RUNNABLE"};
+//         if (curenv) cprintf("[%08X] env stopped: %s\n", curenv->env_id, state[curenv->env_status]);
+//         cprintf("[%08X] env started: %s\n", env->env_id, state[env->env_status]);
+//     }
+//
+//     // LAB 3: Your code here
+//     // LAB 8: Your code here
+//     // MYTODO: CHECK IT!!!
+//
+//     if (env == NULL)
+//     {
+//         panic("No env to change to (`env == NULL`)\n");
+//     }
+//
+//     if (env == curenv)
+//     {
+//         // cprintf("New env is the same as the previous one (`env == curenv`)\n");
+//     }
+//
+//     if (curenv == NULL)
+//     {
+//         // cprintf("First call to env_run\n");
+//     }
+//     else
+//     {
+//         if (curenv->env_status == ENV_RUNNING)
+//         {
+//             curenv->env_status = ENV_RUNNABLE; 
+//         }
+//         // We do not need to continue from the last place (save tf),
+//         // because we do not care about them in syscalls or interrupts or whatever
+//     }
+//
+//     curenv = env;
+//     curenv->env_status = ENV_RUNNING;
+//     ++curenv->env_runs;
+//
+//     switch_address_space(&curenv->address_space); // Added in LAB 8
+//     env_pop_tf(&curenv->env_tf);
+//
+//     panic("Reached unrecheable (`env_pop_tf()` is `_Noreturn`)\n");
+// }
+
+
 _Noreturn void
 env_run(struct Env *env) {
     assert(env);
@@ -551,34 +697,19 @@ env_run(struct Env *env) {
     // LAB 3: Your code here
     // LAB 8: Your code here
 
-    if (env == NULL)
-    {
-        panic("No env to change to (`env == NULL`)\n");
-    }
-
-    if (env == curenv)
-    {
-        cprintf("New env is the same as the previous one (`env == curenv`)\n");
-    }
-
-    if (curenv == NULL)
-    {
-        cprintf("First call to env_run\n");
-    }
-    else
-    {
-        if (curenv->env_status == ENV_RUNNING)
-        {
-            curenv->env_status = ENV_RUNNABLE;        
-        }
-        // We do not need to continue from the last place (save tf),
-        // because we do not care about them in syscalls or interrupts or whatever
-    }
+    if (curenv && curenv != env && curenv->env_status == ENV_RUNNING)
+        curenv->env_status = ENV_RUNNABLE;
 
     curenv = env;
-    curenv->env_status = ENV_RUNNING;
-    ++curenv->env_runs;
-    env_pop_tf(&curenv->env_tf);
+    env->env_status = ENV_RUNNING;
+    env->env_runs++;
 
-    panic("Reached unrecheable (`env_pop_tf()` is `_Noreturn`)\n");
+    switch_address_space(&env->address_space);
+
+    env_pop_tf(&env->env_tf);
+
+    panic("env_run: env_pop_tf returned\n");
+
+    while (1)
+        ;
 }

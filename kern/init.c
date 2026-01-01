@@ -150,7 +150,7 @@ i386_init(void) {
     /* Framebuffer init should be done after memory init */
     fb_init();
     if (trace_init) cprintf("Framebuffer initialised\n");
-    assert(false);
+    // assert(false);
 
     /* User environment initialization functions */
     env_init();
@@ -178,6 +178,7 @@ i386_init(void) {
 #else
     /* Touch all you want. */
     ENV_CREATE(user_hello, ENV_TYPE_USER);
+    // ENV_CREATE(user_testbss, ENV_TYPE_USER);
 #endif /* TEST* */
 #endif
 

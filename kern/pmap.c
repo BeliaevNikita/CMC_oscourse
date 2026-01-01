@@ -1835,19 +1835,36 @@ switch_address_space(struct AddressSpace *space) {
 
 int
 init_address_space(struct AddressSpace *space) {
-    /* Allocte page table with alloc_pt into space->cr3
+    /* Allocate page table with alloc_pt into space->cr3
      * (remember to clean flag bits of result with PTE_ADDR) */
     // LAB 8: Your code here
 
+    pte_t pte = 0;
+    if (alloc_pt(&pte) != 0) {
+	    return -E_NO_MEM;
+	}
+    pte = PTE_ADDR(pte);
+
+    space->cr3 = (uintptr_t) pte;
+
     /* Put its kernel virtual address to space->pml4 */
     // LAB 8: Your code here
+
+    space->pml4 = KADDR(space->cr3);
 
     /* Allocate virtual tree root node
      * of type INTERMEDIATE_NODE with alloc_rescriptor() of type */
     // LAB 8: Your code here
 
+    space->root = alloc_descriptor(INTERMEDIATE_NODE);
+    if (space->root == NULL) {
+	    return -E_NO_MEM;
+    }
+
     /* Initialize UVPT */
     // LAB 8: Your code here
+
+    space->pml4[PML4_INDEX(UVPT)] = space->cr3 | PTE_P | PTE_U;
 
     /* Why this call is required here and what does it do? */
     propagate_one_pml4(space, &kspace);
@@ -2328,10 +2345,88 @@ static uintptr_t user_mem_check_addr;
  * Return 0 if check is passed or -E_FAULT if region
  * does not have enough permissions.
  */
+// int
+// user_mem_check(struct Env *env, const void *va, size_t len, int perm) {
+//     // LAB 8: Your code here
+//
+//     struct Page *root_page = env->address_space.root; // MYTODO: Move inside of the loop?
+//     for
+//     (
+//         void *current_address = (void *) ROUNDDOWN(va, PAGE_SIZE);
+//         current_address < va + len;
+//         current_address += PAGE_SIZE
+//     ) {
+//         if ((uintptr_t) current_address > MAX_USER_READABLE) {
+//             user_mem_check_addr = MAX_USER_READABLE;
+//
+//             return -E_FAULT;
+//         }
+//
+//         const struct Page *current_page = page_lookup_virtual(root_page, (uintptr_t) current_address, 0, 0);
+//         if
+//         (
+//             (current_page->phy == NULL) ||
+//             (current_page->state & PAGE_PROT(perm)) != PAGE_PROT(perm)
+//         )
+//         {
+//             user_mem_check_addr = (uintptr_t) MAX(va, current_address);
+//
+//             return -E_FAULT;
+//         }
+//     }
+//
+//     return 0;
+// }
+
 int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm) {
     // LAB 8: Your code here
-    return -E_FAULT;
+
+    assert(env);
+
+    if (len == 0)
+        return 0;
+
+    uintptr_t start = (uintptr_t)va;
+    uintptr_t end = start + len;
+
+    if (end < start) {
+        user_mem_check_addr = start;
+        return -E_FAULT;
+    }
+
+    int req_perm = perm | PROT_USER_;
+    const uintptr_t page_size = CLASS_SIZE(0);
+
+    for (uintptr_t addr = start; addr < end; ) {
+        if (addr >= MAX_USER_READABLE) {
+            user_mem_check_addr = addr;
+            return -E_FAULT;
+        }
+
+        uintptr_t page = addr & ~CLASS_MASK(0);
+
+        struct Page *node =
+            page_lookup_virtual(env->address_space.root, page, 0, LOOKUP_PRESERVE);
+
+        if (!node || !node->phy) {
+            user_mem_check_addr = addr;
+            return -E_FAULT;
+        }
+
+        int prot = PAGE_PROT(node->state);
+
+        if ((req_perm & ~prot) != 0) {
+            user_mem_check_addr = addr;
+            return -E_FAULT;
+        }
+
+        uintptr_t next = page + page_size;
+        if (next <= addr) 
+            next = addr + 1;
+        addr = next;
+    }
+    return 0;
 }
 
 void
