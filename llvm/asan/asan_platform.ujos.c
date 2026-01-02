@@ -69,27 +69,51 @@ static bool
 asan_shadow_allocator(struct UTrapframe *utf) {
     // LAB 9: Your code here
     // (void)utf;
-    // return 1;
 
-    if (SHADOW_ADDRESS_VALID((void *) utf->utf_fault_va)) {
-        if
-        (
-            sys_alloc_region
-            (
-                CURENVID,
-                ROUNDDOWN((void *) utf->utf_fault_va, SHADOW_STEP), // MYTODO: Maybe void * should be outside of this ROUNDDOWN MACRO
-                SHADOW_STEP,
-                ALLOC_ONE | PROT_RW
-            )
-        ) {
-            platform_abort();
-        }
+    uptr va = (uptr)utf->utf_fault_va;
 
-        return 1;
+    uptr shadow_memory_start    = (uptr) asan_internal_shadow_start;
+    uptr shadow_memory_end      = (uptr) asan_internal_shadow_end;
+    uptr shadow_memory_offset   = (uptr) asan_internal_shadow_off;
+
+    if ((shadow_memory_start > va) || (va >= shadow_memory_end)) {
+        return false;
     }
 
-    return 0;
+    if (va < shadow_memory_offset) {
+        return false;
+    }
+
+    // inverse of ASAN's shadow = (real >> 3) + shadow_memory_offset;
+    uptr original_address = (va - shadow_memory_offset) << 3;
+    if
+    (
+        (shadow_memory_start <= original_address) &&
+        (original_address < shadow_memory_end)
+    ) {
+        return false;
+    }
+
+    uptr start = ROUNDDOWN(va, SHADOW_STEP);
+    uptr end = MIN(start + SHADOW_STEP, shadow_memory_end);
+
+    size_t size = (size_t) (end - start);
+    if
+    (
+        sys_alloc_region
+        (
+            0,
+            (void *) start,
+            size,
+            PROT_R | PROT_W | ALLOC_ZERO
+        ) != 0
+    ) {
+        return false;
+    }
+
+    return true;
 }
+
 #endif
 
 
