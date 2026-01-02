@@ -497,7 +497,7 @@ env_destroy(struct Env *env) {
     env_free(env);
 
     if (env == curenv) {
-        curenv = NULL;
+        // curenv = NULL;
         sched_yield();
     }
 }
