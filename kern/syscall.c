@@ -4,6 +4,7 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/types.h> // for MIN
 
 #include <kern/console.h>
 #include <kern/env.h>
@@ -13,6 +14,10 @@
 #include <kern/syscall.h>
 #include <kern/trap.h>
 #include <kern/traceopt.h>
+
+enum {
+    CPUTS_BUFFER_SIZE = 2048,
+};
 
 /* Print a string to the system console.
  * The string is exactly 'len' characters long.
@@ -28,8 +33,20 @@ sys_cputs(const char *s, size_t len) {
 #ifdef SANITIZE_SHADOW_BASE
     platform_asan_unpoison((void *)s, len);
 #endif
-    for (int i = 0; i < len; i++) {
-        cputchar(*(s + i));
+
+    char buf[CPUTS_BUFFER_SIZE];
+
+    while (len > 0) {
+        size_t m = MIN(len, CPUTS_BUFFER_SIZE);
+
+        memcpy(buf, s, m);
+
+        for (size_t i = 0; i < m; i++) {
+            cputchar(buf[i]);
+        }
+
+        s += m;
+        len -= m;
     }
 
     return 0;

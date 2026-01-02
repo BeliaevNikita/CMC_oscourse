@@ -54,8 +54,13 @@ aka 'unsigned int') to 'uint16_t' (aka 'unsigned short')
  * is probably caused by long-long output overflowing this cursor
 static uint16_t -> uint32_t crt_pos;
  * UNDO IF CONSOLE BREAKS!!!
+ *
+ * Run make grade (look at test_bss) on commit
+ *      1dcd7b9eb3429ef817a8ea4cb6d042c8c3e0e135
+ * For whatever reason the printing is much slower with 32 bits therefore all these lines do not manage to finish printing
+ * I restored this file
  */
-static uint32_t crt_pos = 0;
+static uint16_t crt_pos = 0;
 
 static uint32_t *crt_buf = (uint32_t *)FRAMEBUFFER;
 
