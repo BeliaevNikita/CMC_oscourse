@@ -519,6 +519,7 @@ page_fault_handler(struct Trapframe *tf) {
     }
 
     user_mem_assert(curenv, (void*) cur_ux_rsp, sizeof(struct UTrapframe), PROT_W);
+    // user_mem_assert(curenv, (void*)cur_ux_rsp, sizeof(struct UTrapframe), PROT_W | PROT_USER_);
 
     /* Build local copy of UTrapframe */
     // LAB 9: Your code here:
@@ -550,9 +551,9 @@ page_fault_handler(struct Trapframe *tf) {
     /* Reset in_page_fault flag */
     // LAB 9: Your code here:
 
-    if (envs->env_tf.tf_trapno == T_PGFLT) {
+    // if (envs->env_tf.tf_trapno == T_PGFLT) {
         in_page_fault = 0;
-    }
+    // }
 
     /* Rerun current environment */
     // LAB 9: Your code here:
