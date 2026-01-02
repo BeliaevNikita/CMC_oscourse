@@ -311,7 +311,7 @@ sys_map_region(envid_t srcenvid, uintptr_t srcva,
 
     /* PROT_ALL is useful for validation.
      *  -E_INVAL if perm is inappropriate (see sys_page_alloc).*/
-    if (!(perm & PROT_ALL) || (perm & ALLOC_ZERO) || (perm & ALLOC_ONE)) { // MYTODO: WHY ALLOC_ZERO abd ONE?!
+    if (!(perm & PROT_ALL)/* || (perm & ALLOC_ZERO) || (perm & ALLOC_ONE)*/) { // MYTODO: WHY ALLOC_ZERO abd ONE?!
         return -E_INVAL;
     }
 
@@ -375,7 +375,35 @@ static int
 sys_map_physical_region(uintptr_t pa, envid_t envid, uintptr_t va, size_t size, int perm) {
     // LAB 10: Your code here
 
-    return 0;
+    // MYTODO LAB 10: REWRITE FROM SCRATCH!!!
+    struct Env* new = NULL;
+    if (envid2env(envid, &new, 1) < 0 || new->env_type != ENV_TYPE_FS) {
+        return -E_BAD_ENV;
+    }
+
+    // if ((va + size) >= MAX_USER_ADDRESS || va & CLASS_MASK(0) || pa & CLASS_MASK(0) || size & CLASS_MASK(0)) {
+    //     return -E_INVAL;
+    // }
+
+    // if (perm & ~PROT_ALL) {
+    //     return -E_INVAL;
+    // }
+
+    // return map_physical_region(&new->address_space, va, pa, size, perm | PROT_USER_ | MAP_USER_MMIO);
+
+    if
+    (
+        va >= MAX_USER_ADDRESS ||
+        PAGE_OFFSET(va) ||
+        PAGE_OFFSET(pa) ||
+        PAGE_OFFSET(size) ||
+        size > MAX_USER_ADDRESS ||
+        MAX_USER_ADDRESS - va < size ||
+        perm & (PROT_SHARE | PROT_COMBINE | PROT_LAZY)
+    ) {
+        return -E_INVAL;
+    }
+    return map_physical_region(&new->address_space, va, pa, size, perm | PROT_USER_ | MAP_USER_MMIO);
 }
 
 /* Try to send 'value' to the target env 'envid'.
@@ -447,7 +475,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, uintptr_t srcva, size_t size, in
 
         /*  -E_INVAL if srcva < MAX_USER_ADDRESS and perm is inappropriate
          *      (see sys_page_alloc).*/
-        if (!(perm & PROT_ALL) || (perm & ALLOC_ONE) || (perm & ALLOC_ZERO)) {
+        if (!(perm & PROT_ALL)/* || (perm & ALLOC_ONE) || (perm & ALLOC_ZERO)*/) {
             return -E_INVAL;
         }
 
@@ -458,7 +486,15 @@ sys_ipc_try_send(envid_t envid, uint32_t value, uintptr_t srcva, size_t size, in
         /*  -E_INVAL if (perm & PTE_W), but srcva is read-only in the
          *      current environment's address space.*/
         // MYTODO: Where is the protected read check?!
-        if ((perm & PROT_W) && user_mem_check(curenv, (void *) srcva, size, PROT_W) != 0) {
+        // MYTODO LAB 10
+        // if ((perm & PROT_W) && user_mem_check(curenv, (void *) srcva, size, PROT_W) != 0) {
+        //     return -E_INVAL;
+        // }
+        if
+        (
+            (perm & PROT_W) &&
+            (user_mem_check(curenv, (void *) srcva, size, PROT_W) != 0)
+        ) {
             return -E_INVAL;
         }
 
@@ -483,6 +519,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, uintptr_t srcva, size_t size, in
         }
         
         destination_env->env_ipc_perm = perm;
+        destination_env->env_ipc_maxsz = min;
     } else {
         destination_env->env_ipc_perm = 0;
     }
@@ -551,7 +588,12 @@ static int
 sys_region_refs(uintptr_t addr, size_t size, uintptr_t addr2, uintptr_t size2) {
     // LAB 10: Your code here
 
-    return 0;
+    // MYTODO LAB 10: Rewrite using maxref_1 and maxref_2 that is 0 if >= MAX_USER_ADDRESS
+    if (addr2 >= MAX_USER_ADDRESS) {
+        return region_maxref(&curenv->address_space, addr, size);
+    }
+
+    return region_maxref(&curenv->address_space, addr, size) - region_maxref(&curenv->address_space, addr2, size2);
 }
 
 /* Dispatches to the correct kernel function, passing the arguments. */
@@ -602,18 +644,6 @@ syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t
                 (int)               a6
             );
         }
-        /*
-        case SYS_map_physical_region: {
-            return sys_map_physical_region
-            (
-                (uintptr_t)         a1,
-                (envid_t)           a2,
-                (uintptr_t)         a3,
-                (size_t)            a4,
-                (int)               a5
-            );
-        }
-        */
         case SYS_unmap_region: {
             return sys_unmap_region
             (
@@ -622,17 +652,6 @@ syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t
                 (size_t)            a3
             );
         }
-        /*
-        case SYS_region_refs: {
-            return sys_region_refs
-            (
-                (uintptr_t)         a1,
-                (size_t)            a2,
-                (uintptr_t)         a3,
-                (uintptr_t)         a4
-            );
-        }
-        */
         case SYS_exofork: {
             return sys_exofork();
         }
@@ -683,6 +702,25 @@ syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t
         }
 
         // LAB 10: Your code here
+        case SYS_map_physical_region: {
+            return sys_map_physical_region
+            (
+                (uintptr_t)         a1,
+                (envid_t)           a2,
+                (uintptr_t)         a3,
+                (size_t)            a4,
+                (int)               a5
+            );
+        }
+        case SYS_region_refs: {
+            return sys_region_refs
+            (
+                (uintptr_t)         a1,
+                (size_t)            a2,
+                (uintptr_t)         a3,
+                (uintptr_t)         a4
+            );
+        }
 
         // Common:
         default: {

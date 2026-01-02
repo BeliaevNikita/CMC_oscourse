@@ -34,7 +34,20 @@ bc_pgfault(struct UTrapframe *utf) {
      * the disk. */
     // LAB 10: Your code here
 
-    return 1;
+    // MYTODO LAB 10: Add my formating
+    int res;
+    addr = ROUNDDOWN(addr, BLKSIZE);
+    if ((res = sys_alloc_region(CURENVID, addr, BLKSIZE, PROT_RW))) {
+        panic("bc_pgfault: can't sys_alloc_region(), errno %i\n", res);
+    }
+
+    *(uint8_t *) addr = 0; 
+
+    if ((res = nvme_read(BLKSECTS * blockno, addr, BLKSECTS)) != NVME_OK) {
+        panic("bc_pgfault: can't nvme_read(), errno %i\n", res);
+    }
+
+    return true;
 }
 
 /* Flush the contents of the block containing VA out to disk if
@@ -55,8 +68,22 @@ flush_block(void *addr) {
         panic("reading non-existent block %08x out of %08x\n", blockno, super->s_nblocks);
 
     // LAB 10: Your code here.
-    (void)res;
+    // (void)res;
 
+    // MYTODO LAB 10: Add my formating
+    addr = ROUNDDOWN(addr, BLKSIZE);
+
+    if (!is_page_present(addr) || !is_page_dirty(addr)) {
+        return;
+    }
+
+    if ((res = nvme_write(BLKSECTS * blockno, addr, BLKSECTS)) != NVME_OK) {
+        panic("flush_block: can't nvme_write(), errno %i\n", res);
+    }
+
+    if ((res = sys_map_region(CURENVID, addr, CURENVID, addr, BLKSIZE, PTE_SYSCALL & get_prot(addr)))) {
+        panic("flush_block: can't sys_map_region(), errno %i\n", res);
+    }
 
     assert(!is_page_dirty(addr));
 }

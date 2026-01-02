@@ -199,7 +199,21 @@ serve_read(envid_t envid, union Fsipc *ipc) {
 
     // LAB 10: Your code here
 
-    return -1;
+    // MYTODO LAB 10: Apply my formatting
+    // req->req_n = req->req_n > PAGE_SIZE ? PAGE_SIZE : req->req_n;
+    req->req_n = MIN(req->req_n, PAGE_SIZE);
+    struct OpenFile *po = NULL;
+    int res;
+
+    if ((res = openfile_lookup(envid, req->req_fileid, &po))) {
+        return res;
+    }
+
+    if ((res = file_read(po->o_file, ipc->readRet.ret_buf, req->req_n, po->o_fd->fd_offset)) > 0) {
+        po->o_fd->fd_offset += res;
+    }
+
+    return res;
 }
 
 /* Write req->req_n bytes from req->req_buf to req_fileid, starting at
@@ -214,7 +228,19 @@ serve_write(envid_t envid, union Fsipc *ipc) {
 
     // LAB 10: Your code here
 
-    return -1;
+    // MYTODO LAB 10: Apply my formatting
+    struct OpenFile *po = NULL;
+    int res;
+
+    if ((res = openfile_lookup(envid, req->req_fileid, &po))) {
+        return res;
+    }
+
+    if ((res = file_write(po->o_file, req->req_buf, req->req_n, po->o_fd->fd_offset)) > 0) {
+        po->o_fd->fd_offset += res;
+    }
+
+    return res;
 }
 
 /* Stat ipc->stat.req_fileid.  Return the file's struct Stat to the

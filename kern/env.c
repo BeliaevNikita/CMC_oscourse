@@ -444,24 +444,29 @@ void
 env_create(uint8_t *binary, size_t size, enum EnvType type) {
     // LAB 3: Your code here
     // LAB 8: Your code here
-<<<<<<< HEAD
-    struct Env *e;
-    int r = env_alloc(&e, 0, type);
-    if (r < 0)
+    struct Env *new_env;
+    int r = env_alloc(&new_env, 0, type);
+    if (r < 0) {
         panic("env_create: %d", r);
+    }
 
 #ifndef CONFIG_KSPACE
-    e->env_type = type;
+    new_env->env_type = type;
 #endif
 
-    e->binary = binary;
+    new_env->binary = binary;
 
-    r = load_icode(e, binary, size);
-    if (r < 0)
+    r = load_icode(new_env, binary, size);
+    if (r < 0) {
         panic("load_icode: %d", r);
-=======
+    }
+
     // LAB 10: Your code here
->>>>>>> origin/lab10
+    if (type == ENV_TYPE_FS) {
+        new_env->env_tf.tf_rflags |= FL_IOPL_3;
+    } else {
+        new_env->env_tf.tf_rflags &= ~FL_IOPL_MASK;
+    }
 }
 
 
@@ -501,14 +506,14 @@ env_destroy(struct Env *env) {
      * it traps to the kernel. */
 
     // LAB 3: Your code here
-<<<<<<< HEAD
     if (env->env_status == ENV_RUNNING && env != curenv) {
         env->env_status = ENV_DYING;
+
         return;
     }
-=======
+
     // LAB 10: Your code here
->>>>>>> origin/lab10
+    // No code added. Why in the world would I add anything here?! :)
 
     /* Reset in_page_fault flags in case *current* environment
      * is getting destroyed after performing invalid memory access. */

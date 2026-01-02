@@ -61,6 +61,23 @@ alloc_block(void) {
 
     // LAB 10: Your code here
 
+    // MYTODO LAB 10: Rewrite using for
+    blockno_t blkno = 0, j = 0;
+    while (j < super->s_nblocks) {
+        if (bitmap[j / 32]) {
+            for (blockno_t i = 0; i < 32; i++) {
+                if (block_is_free(j + i)) {
+                    blkno = j + i;
+                    CLRBIT(bitmap, blkno);
+                    flush_block(&bitmap[blkno / 32]);
+                    return blkno;
+                }
+            }
+        }
+
+        j += 32;
+    }
+
     return 0;
 }
 
