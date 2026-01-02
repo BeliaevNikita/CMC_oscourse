@@ -121,11 +121,7 @@ env_init(void) {
     int i = 0;
     for(i = 0; i < NENV; i++){
         envs[i].env_id = 0;
-        if (i != NENV - 1){
-            envs[i].env_link = &(envs[i+1]);
-        } else {
-            envs[i].env_link = NULL;
-        }
+        envs[i].env_link = &(envs[(i + 1) % NENV]);
         envs[i].env_status = ENV_FREE;
     }
     env_free_list = envs;
