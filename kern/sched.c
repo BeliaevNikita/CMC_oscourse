@@ -43,12 +43,12 @@ sched_yield(void) {
     if (!found_env_to_switch_to && (curenv->env_status == ENV_RUNNING))
     {
         // cprintf("No new env to run. Continue running the old one...\n");
-        // env_run(curenv); // Not needed but who cares. "Almost a no-op"
+        env_run(curenv); // Not needed but who cares. "Almost a no-op"
     }
 
     // env_run(&envs[0]);
 
-cprintf("yield: curenv=%p status=%d\n", curenv, curenv ? curenv->env_status : -1);
+// cprintf("yield: curenv=%p status=%d\n", curenv, curenv ? curenv->env_status : -1);
     cprintf("Halt\n");
 
     /* No runnable environments,

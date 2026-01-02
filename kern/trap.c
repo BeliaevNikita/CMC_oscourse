@@ -299,8 +299,8 @@ trap_dispatch(struct Trapframe *tf) {
     case IRQ_OFFSET + IRQ_CLOCK:
         // return;
     case IRQ_OFFSET + IRQ_TIMER:
-        cprintf("TIMER irq: cs=%x rip=%lx rsp=%lx curenv=%p\n",
-            tf->tf_cs, tf->tf_rip, tf->tf_rsp, curenv);
+        // cprintf("TIMER irq: cs=%x rip=%lx rsp=%lx curenv=%p\n",
+        //     tf->tf_cs, tf->tf_rip, tf->tf_rsp, curenv);
         // MYTODO: UNDERSTAND WHY THIS IS NOT WORKING!!!
         // LAB 4: Your code here
 
@@ -309,7 +309,10 @@ trap_dispatch(struct Trapframe *tf) {
 
         // LAB 5: Your code here
 
-        // timer_for_schedule->handle_interrupts();
+        timer_for_schedule->handle_interrupts();
+        if (((tf->tf_cs & 3) == 3) && !in_page_fault) {
+            sched_yield();
+        }
         // sched_yield();
 
         return;

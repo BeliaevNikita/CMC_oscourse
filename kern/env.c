@@ -553,6 +553,7 @@ env_destroy(struct Env *env) {
     env->env_status = ENV_DYING;
 
     env_free(env);
+    in_page_fault = 0;
     if (env == curenv) {
         sched_yield();
     }
@@ -561,7 +562,7 @@ env_destroy(struct Env *env) {
      * is getting destroyed after performing invalid memory access. */
     // LAB 8: Your code here
     // MYTODO: CHECK IT!!!
-    in_page_fault = 0;
+    // in_page_fault = 0;
 
 }
 

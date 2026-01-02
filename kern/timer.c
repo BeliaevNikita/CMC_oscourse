@@ -449,7 +449,8 @@ hpet_enable_interrupts_tim0(void) {
 
         hpetReg->TIM0_CONF |= HPET_TN_INT_ENB_CNF; // turn on that timer
 
-        hpetReg->TIM0_COMP = hpetFreq / 100000;
+        // hpetReg->TIM0_COMP = hpetFreq / 100000;
+        hpetReg->TIM0_COMP = hpetFreq / 2;
     }
     nmi_enable();
 
