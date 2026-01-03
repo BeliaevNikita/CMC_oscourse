@@ -312,6 +312,7 @@ sys_map_region(envid_t srcenvid, uintptr_t srcva,
     /* PROT_ALL is useful for validation.
      *  -E_INVAL if perm is inappropriate (see sys_page_alloc).*/
     if (!(perm & PROT_ALL)/* || (perm & ALLOC_ZERO) || (perm & ALLOC_ONE)*/) { // MYTODO: WHY ALLOC_ZERO abd ONE?!
+    // if (!(perm & PROT_ALL) || (perm & ALLOC_ZERO) || (perm & ALLOC_ONE)) { // MYTODO: WHY ALLOC_ZERO abd ONE?!
         return -E_INVAL;
     }
 

@@ -47,8 +47,12 @@ bc_pgfault(struct UTrapframe *utf) {
         panic("bc_pgfault: can't nvme_read(), errno %i\n", res);
     }
 
+    // Clear dirty bit: remap page to itself with same permissions
+// int perm = get_prot(addr);                 // IMPORTANT: must match sys_map_region's expected perm format
+// int r = sys_map_region(CURENVID, addr, CURENVID, addr, BLKSIZE, perm);
+// if (r < 0) panic("!!!\n");
+
     return true;
-    // return false;
 }
 
 /* Flush the contents of the block containing VA out to disk if

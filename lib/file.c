@@ -125,9 +125,11 @@ devfile_read(struct Fd *fd, void *buf, size_t n) {
         fsipcbuf.read.req_n = wanted;
 
         res = fsipc(FSREQ_READ, NULL); 
-        if (res <= 0) {
-            return res ? res : res0;
-        }
+        // if (res <= 0) {
+        //     return res ? res : res0;
+        // }
+        if (res < 0) return res0 ? (ssize_t)res0 : res;
+        if (res == 0) return (ssize_t)res0;
         
         memcpy(buf, fsipcbuf.readRet.ret_buf, res);
 
