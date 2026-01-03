@@ -3,6 +3,9 @@
 #include <kern/env.h>
 #include <kern/monitor.h>
 
+#ifndef trace_sched_my
+#define trace_sched_my 0
+#endif
 
 struct Taskstate cpu_ts;
 _Noreturn void sched_halt(void);
@@ -26,29 +29,44 @@ sched_yield(void) {
 
     // LAB 3: Your code here:
 
-    int64_t current_env_index = curenv - envs;
-    bool found_env_to_switch_to = false;
+    int64_t current_env_index;
+    if (curenv != NULL) {
+        current_env_index = curenv - envs;
+    }
+    else {
+        current_env_index = -1; // `i` starts with 1. 1 + (-1) == 0
+        if (trace_sched_my) {
+            cprintf("sched_yield: curenv == NULL. Will run the env with index 0\n");
+        }
 
+    }
+
+    bool found_env_to_switch_to = false;
     for (int64_t i = 1; i < NENV; ++i)
     {
         int64_t curretly_viewed_env_index = (i + current_env_index) % NENV;
         struct Env *curretly_viewed_env = &envs[curretly_viewed_env_index];
         if (curretly_viewed_env->env_status == ENV_RUNNABLE)
         {
-            cprintf("Found a new env to run. Switching...\n");
+            found_env_to_switch_to = true;
+            if (trace_sched_my) {
+                cprintf("Found a new env to run. Switching...\n");
+            }
             env_run(curretly_viewed_env);
         }
     }
 
-    if (!found_env_to_switch_to && (curenv->env_status == ENV_RUNNING))
+    if (!found_env_to_switch_to && (curenv != NULL) && (curenv->env_status == ENV_RUNNING))
     {
-        // cprintf("No new env to run. Continue running the old one...\n");
+        if (trace_sched_my) {
+            cprintf("No new env to run. Continue running the old one...\n");
+        }
         env_run(curenv); // Not needed but who cares. "Almost a no-op"
     }
 
-    // env_run(&envs[0]);
-
-// cprintf("yield: curenv=%p status=%d\n", curenv, curenv ? curenv->env_status : -1);
+    if (trace_sched_my) {
+        cprintf("Halt: curenv=%p status=%d\n", curenv, curenv ? curenv->env_status : -1);
+    }
     cprintf("Halt\n");
 
     /* No runnable environments,
