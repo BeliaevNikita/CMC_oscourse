@@ -565,12 +565,13 @@ sys_ipc_recv(uintptr_t dstva, uintptr_t maxsize) {
     // }
 
     /*  -E_INVAL if dstva < MAX_USER_ADDRESS but dstva is not page-aligned;*/
-    if ((dstva < MAX_USER_ADDRESS) || (dstva & CLASS_MASK(0))) {
+    if ((dstva < MAX_USER_ADDRESS) && (dstva & CLASS_MASK(0))) {
             return -E_INVAL;
     }
 
     /*  -E_INVAL if dstva is valid and maxsize is 0,*/
-    if (maxsize == (uintptr_t) NULL) {
+    if ((dstva < MAX_USER_ADDRESS) && (maxsize == 0)) {
+    // if (maxsize == (uintptr_t) NULL) {
         return -E_INVAL;
     }
 
