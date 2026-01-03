@@ -92,8 +92,13 @@ _alltraps:
 	# all trap handlers' entry points
 	# (Look up their list in inc/trap.h)
 
+    # The one for LAB 4
 	TRAPHANDLER_NOEC(clock_thdlr, IRQ_OFFSET + IRQ_CLOCK)
+
+    # The one for LAB 5
 	TRAPHANDLER_NOEC(timer_thdlr, IRQ_OFFSET + IRQ_TIMER)
+
+    # The ones for LAB 8
 	TRAPHANDLER_NOEC(thdlr0, T_DIVIDE)
 	TRAPHANDLER_NOEC(thdlr1, T_DEBUG)
 	TRAPHANDLER_NOEC(thdlr2, T_NMI)
@@ -113,6 +118,8 @@ _alltraps:
 	TRAPHANDLER_NOEC(thdlr18, T_MCHK)
 	TRAPHANDLER_NOEC(thdlr19, T_SIMDERR)
 	TRAPHANDLER_NOEC(thdlr48, T_SYSCALL)
+
+    # The ones for LAB 11
 	TRAPHANDLER_NOEC(kbd_thdlr, IRQ_OFFSET + IRQ_KBD)
 	TRAPHANDLER_NOEC(serial_thdlr, IRQ_OFFSET + IRQ_SERIAL)
 

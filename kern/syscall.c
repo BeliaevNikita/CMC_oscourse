@@ -600,6 +600,38 @@ static int
 sys_env_set_trapframe(envid_t envid, struct Trapframe *tf) {
     // LAB 11: Your code here
 
+    /*   -Check environment id to be valid and accessible */
+    struct Env *destination_env = NULL;
+    if (envid2env(envid, &destination_env, /*need_check_perm=*/true) < 0) {
+        return -E_BAD_ENV;
+    }
+
+    /*   -Check argument to be valid memory */
+    user_mem_assert(curenv, tf, sizeof(*tf), PROT_R | PROT_USER_);
+    /*   -Use nosan_memcpy to copy from usespace */
+    nosan_memcpy((void *)&destination_env->env_tf, (void *)tf, sizeof(*tf));
+    
+    /*   -Prevent privilege escalation by overriding segments */
+    destination_env->env_tf.tf_cs = GD_UT | 3;
+    destination_env->env_tf.tf_ds = GD_UD | 3;
+    destination_env->env_tf.tf_es = GD_UD | 3;
+    destination_env->env_tf.tf_ss = GD_UD | 3;
+
+    /*   -Only allow program to set safe flags in RFLAGS register */
+    // const uint64_t FL_USER_MASK = 0xFFF;
+    const uint64_t FL_USER_MASK = FL_CF | FL_PF | FL_AF | FL_ZF | FL_SF | FL_TF | FL_DF | FL_OF;
+    destination_env->env_tf.tf_rflags &= FL_USER_MASK;
+
+    // destination_env->env_tf.tf_rflags =
+    //     (destination_env->env_tf.tf_rflags & ~FL_USER_MASK) |   // zero the scary bits in the envs
+    //     (tf->tf_rflags & FL_USER_MASK);                         // prevent from readding them from user's flags
+
+    /*   -Force IF to be set in RFLAGS */
+    destination_env->env_tf.tf_rflags |= FL_IF;
+
+    // It is literally I/O PRIVILEDGED level
+    destination_env->env_tf.tf_rflags &= ~FL_IOPL_MASK;
+
     return 0;
 }
 
@@ -645,7 +677,8 @@ syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t
             return sys_getenvid();
         }
         case SYS_env_destroy: {
-            return sys_env_destroy(
+            return sys_env_destroy
+            (
                 (envid_t)           a1
             );
         }
@@ -689,15 +722,6 @@ syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t
                 (int)               a2
             );
         }
-        /*
-        case SYS_env_set_trapframe: {
-            return sys_env_set_trapframe
-            (
-                (envid_t)           a1,
-                (struct Trapframe*) a2
-            );
-        }
-        */
         case SYS_env_set_pgfault_upcall: {
             return sys_env_set_pgfault_upcall
             (
@@ -750,7 +774,13 @@ syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t
         }
 
         // LAB 11: Your code here
-
+        case SYS_env_set_trapframe: {
+            return sys_env_set_trapframe
+            (
+                (envid_t)           a1,
+                (struct Trapframe *)a2
+            );
+        }
 
         // Common:
         default: {
