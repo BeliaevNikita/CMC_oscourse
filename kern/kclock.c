@@ -125,7 +125,17 @@ get_time(void) {
 int
 gettime(void) {
     // LAB 12: your code here
+
     int res = 0;
+    int confirmation = 0;
+
+    while (cmos_read8(RTC_AREG) & RTC_UPDATE_IN_PROGRESS);
+
+    do {
+        res = get_time();
+        confirmation = get_time();
+    } while (res != confirmation);
+
     return res;
 }
 

@@ -1,5 +1,6 @@
 /* See COPYRIGHT for copyright information. */
 
+#include "inc/memlayout.h"
 #include <inc/x86.h>
 #include <inc/mmu.h>
 #include <inc/error.h>
@@ -98,42 +99,81 @@ env_init(void) {
      * kzalloc_region only works with current_space != NULL */
     // LAB 12: Your code here
 
+    assert(current_space != NULL);
+
+    const size_t vsys_size = ROUNDUP(UVSYS_SIZE, CLASS_SIZE(0));
+    vsys = (volatile int *) kzalloc_region(vsys_size);
+    if (vsys == NULL) {
+        panic("env_init: failed to allocate vsys");
+    }
+
+    /* Map vsys to UVSYS read-only,
+     * but user-accessible (with PROT_USER_ set) */
+    // LAB 12: Your code here
+
+    {
+        int result = map_region
+        (
+            current_space,
+            UVSYS,
+            &kspace,
+            // current_space,
+            (uintptr_t) vsys,
+            vsys_size,
+            PROT_USER_ | PROT_R
+        );
+
+        if (result < 0) {
+            panic("env_init: map_region(UVSYS) failed: %d", result);
+        }
+    }
+
     /* Allocate envs array with kzalloc_region().
      * Don't forget about rounding.
      * kzalloc_region() only works with current_space != NULL */
     // LAB 8: Your code here
-    size_t envs_bytes = (size_t)NENV * sizeof(struct Env);
-    size_t envs_size  = ROUNDUP(envs_bytes, CLASS_SIZE(0));
 
-    envs = (struct Env *)kzalloc_region(envs_size);
-    if (!envs)
+    assert(current_space != NULL);
+
+    const size_t envs_bytes = (size_t) NENV * sizeof(*envs);
+    const size_t envs_size  = ROUNDUP(envs_bytes, CLASS_SIZE(0));
+    envs = (struct Env *) kzalloc_region(envs_size);
+    if (envs == NULL) {
         panic("env_init: failed to allocate envs");
+    }
 
     /* Map envs to UENVS read-only,
      * but user-accessible (with PROT_USER_ set) */
     // LAB 8: Your code here
-    int r = map_region(
-        current_space,         
-        UENVS,             
-        current_space,         
-        (uintptr_t)envs,       
-        envs_size,            
-        PROT_USER_ | PROT_R    
-    );
-    if (r < 0)
-        panic("env_init: map_region(UENVS) failed: %d", r);
 
+    {
+        int result = map_region
+        (
+            current_space,
+            UENVS,
+            &kspace,
+            // current_space,
+            (uintptr_t) envs,
+            envs_size,
+            PROT_USER_ | PROT_R
+        );
+
+        if (result < 0) {
+            panic("env_init: map_region(UENVS) failed: %d", result);
+        }
+    }
 
     /* Set up envs array */
 
     // LAB 3: Your code here
-    int i = 0;
-    for(i = 0; i < NENV; i++){
+    for (int i = 0; i < NENV; ++i){
         envs[i].env_id = 0;
         envs[i].env_link = &(envs[(i + 1) % NENV]);
         envs[i].env_status = ENV_FREE;
     }
     env_free_list = envs;
+
+    return;
 }
 
 /* Allocates and initializes a new environment.

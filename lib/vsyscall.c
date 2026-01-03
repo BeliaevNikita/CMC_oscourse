@@ -4,8 +4,15 @@
 static inline uint64_t
 vsyscall(int num) {
     // LAB 12: Your code here
-    (void)num;
-    return 0;
+    // (void)num;
+    // return 0;
+
+    // Only one is available in our JOS
+    if (num == VSYS_gettime) {
+        return vsys[num];
+    }
+
+    return -E_INVAL;
 }
 
 int
