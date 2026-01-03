@@ -34,3 +34,9 @@
 /LoaderPkg/ESP
 /LoaderPkg/efibuild.sh
 /LoaderPkg/mtoc-mac64.sha256
+
+# Added by FPh who used `bear` for LSP-s
+
+.cache/clangd/
+compile_commands.json
+
