@@ -41,7 +41,7 @@ bc_pgfault(struct UTrapframe *utf) {
         panic("bc_pgfault: can't sys_alloc_region(), errno %i\n", res);
     }
 
-    // *(uint8_t *) addr = 0; // Comment if breaks sth
+    *(uint8_t *) addr = 0; // Comment if breaks sth
 
     if ((res = nvme_read(BLKSECTS * blockno, addr, BLKSECTS)) != NVME_OK) {
         panic("bc_pgfault: can't nvme_read(), errno %i\n", res);
