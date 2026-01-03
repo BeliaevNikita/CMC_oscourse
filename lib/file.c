@@ -118,8 +118,11 @@ devfile_read(struct Fd *fd, void *buf, size_t n) {
     size_t res0 = 0;
     int res = 0;
     while (res0 < n) {
+        size_t remaining = n - res0;
+        size_t wanted = MIN(remaining, sizeof(fsipcbuf.readRet.ret_buf));
+
         fsipcbuf.read.req_fileid = fd->fd_file.id;
-        fsipcbuf.read.req_n = n; // MYTODO LAB 10: FIX IT
+        fsipcbuf.read.req_n = wanted;
 
         res = fsipc(FSREQ_READ, NULL); 
         if (res <= 0) {
@@ -151,24 +154,31 @@ devfile_write(struct Fd *fd, const void *buf, size_t n) {
     // LAB 10: Your code here:
     // (void)fd, (void)buf, (void)n;
 
+    const uint8_t *p = (const uint8_t *)buf;
     size_t res0 = 0;
-    int res = 0;
-    while (res0 < n) {
-        size_t next = MIN(n, sizeof(fsipcbuf.write.req_buf));
-        memcpy(fsipcbuf.write.req_buf, buf, next);
-        fsipcbuf.write.req_fileid = fd->fd_file.id;
-        fsipcbuf.write.req_n = next;
 
-        res = fsipc(FSREQ_WRITE, NULL); // MYTODO LAB 10: FIX IT
-        if (res < 0) {
-            return res;
+    while (res0 < n) {
+        size_t remaining = n - res0;
+        size_t wanted = MIN(remaining, sizeof(fsipcbuf.write.req_buf));
+
+        memcpy(fsipcbuf.write.req_buf, p + res0, wanted);
+        fsipcbuf.write.req_fileid = fd->fd_file.id;
+        fsipcbuf.write.req_n = wanted;
+
+        ssize_t r = fsipc(FSREQ_WRITE, NULL);
+        if (r < 0) {
+            return r;
         }
 
-        buf += res;
-        res0 += res;
+        // r is how many bytes actually got written (can be < wanted)
+        if (r == 0) {
+            break; // avoid infinite loop if FS reports no progress
+        }
+
+        res0 += (size_t)r;
     }
 
-    return res0;
+    return (ssize_t)res0;
 }
 
 /* Get file information */

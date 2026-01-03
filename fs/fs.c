@@ -65,7 +65,7 @@ alloc_block(void) {
     blockno_t blkno = 0, j = 0;
     while (j < super->s_nblocks) {
         if (bitmap[j / 32]) {
-            for (blockno_t i = 0; i < 32; i++) {
+            for (blockno_t i = 0; (i < 32) && (j + i < super->s_nblocks); i++) {
                 if (block_is_free(j + i)) {
                     blkno = j + i;
                     CLRBIT(bitmap, blkno);

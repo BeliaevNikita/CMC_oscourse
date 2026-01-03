@@ -37,17 +37,18 @@ bc_pgfault(struct UTrapframe *utf) {
     // MYTODO LAB 10: Add my formating
     int res;
     addr = ROUNDDOWN(addr, BLKSIZE);
-    if ((res = sys_alloc_region(CURENVID, addr, BLKSIZE, PROT_RW))) {
+    if ((res = sys_alloc_region(CURENVID, addr, BLKSIZE, PROT_RW)) < 0) {
         panic("bc_pgfault: can't sys_alloc_region(), errno %i\n", res);
     }
 
-    *(uint8_t *) addr = 0; 
+    // *(uint8_t *) addr = 0; // Comment if breaks sth
 
     if ((res = nvme_read(BLKSECTS * blockno, addr, BLKSECTS)) != NVME_OK) {
         panic("bc_pgfault: can't nvme_read(), errno %i\n", res);
     }
 
     return true;
+    // return false;
 }
 
 /* Flush the contents of the block containing VA out to disk if
