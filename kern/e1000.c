@@ -124,6 +124,7 @@ int e1000_transmit(const char *buf, unsigned len) {
     return 0;
 }
 
+// ITASK ToDo: Add buffer size as an argument!
 int e1000_receive(char *buffer) {
     // Tail RX Descriptor Index
     uint32_t tail_rx = E1000_REG(E1000_RDT);

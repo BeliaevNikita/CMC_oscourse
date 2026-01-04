@@ -5,6 +5,10 @@
 #include <inc/error.h>
 #include <inc/assert.h>
 
+//52:54:00:12:34:56
+const uint8_t qemu_mac[6] = {0x52, 0x54, 0x0, 0x12, 0x34, 0x56};
+//3a:be:6d:a0:af:00
+const uint8_t hard_code_destination_mac[6] = {0x3a, 0xbe, 0x6d, 0xa0, 0xaf, 0x00};
 
 int
 eth_send(struct eth_hdr *hdr, void *data, size_t len) {

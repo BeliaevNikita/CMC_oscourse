@@ -28,7 +28,11 @@ enum {
     E_NOT_EXEC = 18,    /* File not a valid executable */
     E_NOT_SUPP = 19,    /* Operation not supported */
     // ITASK: Your code here
-    E_BAD_ETH_TYPE = 20,/* Bad ethernet type */
+    E_BAD_ETH_TYPE          = 20,   /* bad Ethernet type */
+
+    E_UNS_IP_VER            = 21,   /* IP version not unsupported */
+    E_BAD_IP_PROTO          = 22,   /* bad IP proto */
+    E_INV_IP_CHECKSUM       = 23,   /* invalid IP checksum */
     MAXERROR
 };
 

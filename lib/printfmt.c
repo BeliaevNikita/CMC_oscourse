@@ -38,7 +38,12 @@ static const char *const error_string[MAXERROR] = {
         [E_FILE_EXISTS] = "file already exists",
         [E_NOT_EXEC] = "file is not a valid executable",
         [E_NOT_SUPP] = "operation not supported",
-        [E_BAD_ETH_TYPE] = "bad ethernet type",
+        // ITASK: Your code here
+        [E_BAD_ETH_TYPE]            = "bad Ethernet type",
+
+        [E_UNS_IP_VER]              = "IP version not unsupported",
+        [E_BAD_IP_PROTO]            = "bad IP proto",
+        [E_INV_IP_CHECKSUM]         = "invalid IP checksum",
 };
 
 /*
