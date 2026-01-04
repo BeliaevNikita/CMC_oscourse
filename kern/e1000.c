@@ -94,8 +94,7 @@ int e1000_attach(struct pci_func *pciFunction) {
 
 
 int e1000_transmit(const char *buf, unsigned len) {
-    // Trunk packet length
-    len = len > E1000_BUFFER_SIZE ? E1000_BUFFER_SIZE : len;
+    assert(len <= E1000_BUFFER_SIZE);
 
     // Tail TX Descriptor Index
     uint32_t tail_tx = E1000_REG(E1000_TDT);
@@ -132,6 +131,7 @@ int e1000_receive(char *buffer) {
     // Check status of tail RX Descriptor
     if (!(rx_desc_table[tail_rx].status & E1000_RXD_STAT_DD)) {
         cprintf("E1000 receive queue is empty");
+
         return -1;
     }
 
