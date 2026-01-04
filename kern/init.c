@@ -19,6 +19,9 @@
 #include <kern/kdebug.h>
 #include <kern/traceopt.h>
 
+// ITASK: Your code here
+#include <kern/pci.h>
+
 void
 timers_init(void) {
     timertab[0] = timer_rtc;
@@ -154,6 +157,10 @@ i386_init(void) {
 
     /* User environment initialization functions */
     env_init();
+
+	// ITASK: Your code here
+    pci_init();
+    assert(false);
 
     /* Choose the timer used for scheduling: hpet or pit */
     timers_schedule("hpet0");
