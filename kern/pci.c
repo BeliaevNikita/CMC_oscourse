@@ -194,8 +194,8 @@ pci_bridge_attach(struct pci_func *pcif) {
         return 0;
     }
 
-    struct pci_bus nbus;
-    memset(&nbus, 0, sizeof(nbus));
+    struct pci_bus nbus = {0};
+    // memset(&nbus, 0, sizeof(nbus));
     nbus.parent_bridge = pcif;
     nbus.busno = PCI_BRIDGE_BUS_NUM_SECONDARY(busreg);
 
@@ -290,8 +290,9 @@ pci_get_bar_info(struct pci_func *f) {
 
 int
 pci_init(void) {
-    static struct pci_bus root_bus;
     // start scanning from the zero bus
-    memset(&root_bus, 0, sizeof(root_bus));
+    static struct pci_bus root_bus = {0};
+    // memset(&root_bus, 0, sizeof(root_bus));
+
     return pci_scan_bus(&root_bus);
 }
