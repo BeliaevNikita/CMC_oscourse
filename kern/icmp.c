@@ -14,7 +14,7 @@ icmp_echo_reply(struct ip_pkt* pkt) {
         cprintf("Processing ICMP packet\n");
     }
     struct icmp_pkt icmp_packet;
-    int size = htons(pkt->hdr.ip_total_length) - IP_HEADER_LEN;
+    int size = ntohs(pkt->hdr.ip_total_length) - IP_HEADER_LEN;
     memcpy((void*)&icmp_packet, (void*)pkt->data, size);
     struct icmp_hdr* hdr = &icmp_packet.hdr;
     
@@ -27,8 +27,8 @@ icmp_echo_reply(struct ip_pkt* pkt) {
         return -E_INV_ICMP_CODE;
     }
     hdr->msg_type = ECHO_REPLY;
-    hdr->checksum = htonl(hdr->checksum) + 0x0800;
-    hdr->checksum = htonl(hdr->checksum);
+    hdr->checksum = ntohs(hdr->checksum) + 0x0800;
+    hdr->checksum = htons(hdr->checksum);
 
     struct ip_pkt result;
     result.hdr.ip_protocol = IP_PROTO_ICMP;
@@ -38,4 +38,5 @@ icmp_echo_reply(struct ip_pkt* pkt) {
     return ip_send(&result, size);
 
 }
+
 
