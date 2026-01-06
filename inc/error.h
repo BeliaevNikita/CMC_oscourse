@@ -33,6 +33,8 @@ enum {
     E_UNS_IP_VER            = 21,   /* IP version not unsupported */
     E_BAD_IP_PROTO          = 22,   /* bad IP proto */
     E_INV_IP_CHECKSUM       = 23,   /* invalid IP checksum */
+    E_UNS_ICMP_TYPE 	    = 24,
+    E_INV_ICMP_CODE 	    = 25, /* Invalid icmp message code */
     MAXERROR
 };
 
