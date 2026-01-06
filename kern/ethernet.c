@@ -49,8 +49,11 @@ eth_recv(void *data) {
 
     // Dispatch to higher level protocols
     switch (hdr.eth_type) {
-        // case ETH_TYPE_IP: {
-        // }
+        case ETH_TYPE_IP: {
+            if (ip_recv(data) < 0) {
+                return -1;
+            }
+        }
         case ETH_TYPE_ARP: {
             if (arp_resolve(data) < 0) {
                 return -1;
