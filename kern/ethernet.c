@@ -54,6 +54,6 @@ eth_recv(void *data) {
         }
     }
 
-    return size;
+    return size; // TODO: maybe return payload size
 }
 

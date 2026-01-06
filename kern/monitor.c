@@ -18,6 +18,10 @@
 #include <kern/pmap.h>
 #include <kern/trap.h>
 
+// ITASK: Your code here
+#include <kern/e1000.h>
+#include <kern/ethernet.h>
+
 #define WHITESPACE "\t\r\n "
 #define MAXARGS    16
 #define CALL_INSN_LEN 5
@@ -34,6 +38,10 @@ int mon_frequency(int argc, char **argv, struct Trapframe *tf);
 int mon_memory(int argc, char **argv, struct Trapframe *tf);
 int mon_pagetable(int argc, char **argv, struct Trapframe *tf);
 int mon_virt(int argc, char **argv, struct Trapframe *tf);
+
+// ITASK: Your code here
+int mon_e1000_recv(int argc, char **argv, struct Trapframe *tf);
+int mon_eth_recv(int argc, char **argv, struct Trapframe *tf);
 
 struct Command {
     const char *name;
@@ -54,6 +62,11 @@ static struct Command commands[] = {
         {"memory", "Display allocated memory pages", mon_memory},
         {"pagetable", "Display current page table", mon_pagetable},
         {"virt", "Display virtual memory tree", mon_virt},
+
+        // ITASK: Your code here
+        {"e1000_recv", "Test e1000 receive", mon_e1000_recv},
+        // {"e1000_tran", "Test e1000 transmit", mon_e1000_tran},
+        {"eth_recv", "Test Ethernet receive", mon_eth_recv},
 };
 #define NCOMMANDS (sizeof(commands) / sizeof(commands[0]))
 
@@ -230,6 +243,49 @@ mon_dumpcmos(int argc, char **argv, struct Trapframe *tf) {
         for (int j = 0x00; j < 0x10; j += 0x01)
         {
             cprintf("%02X ", cmos_read8(i + j));
+        }
+        cprintf("\n");
+    }
+
+    return 0;
+}
+
+
+// ITASK: Your code here
+int
+mon_e1000_recv(int argc, char **argv, struct Trapframe *tf) {
+    e1000_listen();
+
+    char buf[1000];
+    int len = e1000_receive(buf);
+    cprintf("received len: %d\n", len);
+    cprintf("received packet: ");
+    for (int i = 0; i < len; i++) {
+        cprintf("%x ", buf[i] & 0xff);
+    }
+    cprintf("\n");
+
+    return 0;
+}
+
+int
+mon_eth_recv(int argc, char **argv, struct Trapframe *tf) {
+    while (true) {
+        e1000_listen();
+
+        char buf[1000];
+        int len = eth_recv(buf);
+        if (/*trace_packets && */len >= 0) {
+            cprintf("received len: %d\n", len);
+            if (len > 0) {
+                cprintf("received packet: ");
+                for (int i = 0; i < len; i++) {
+                    cprintf("%x ", buf[i] & 0xff);
+                }
+                cprintf("\n");
+            }
+        } else {
+            cprintf("received status: %s%s\n", (len >= 0) ? "OK" : "ERROR", (len == 0) ? " EMPTY" : " ");
         }
         cprintf("\n");
     }
