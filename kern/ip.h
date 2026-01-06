@@ -46,4 +46,13 @@ enum IPProto {
     // IP_PROTO_SCTP    = 132,
 };
 
+// In network order
+#define IP(a,b,c,d) ( \
+    (((uint32_t)((a) & 0xff)) << 24) | \
+    (((uint32_t)((b) & 0xff)) << 16) | \
+    (((uint32_t)((c) & 0xff)) << 8 ) | \
+    ((uint32_t)((d) & 0xff)) )
+#define MY_IP   IP(192,168,123,2)
+#define HOST_IP IP(192,168,123,1)
+
 #endif

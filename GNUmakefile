@@ -325,6 +325,21 @@ IMAGES += $(OBJDIR)/fs/fs.img
 QEMUOPTS += -bios $(OVMF_FIRMWARE)
 # QEMUOPTS += -debugcon file:$(UEFIDIR)/debug.log -global isa-debugcon.iobase=0x402
 
+# ITASK: Your code here
+
+# Guest OS (E1000 NIC)
+#         |
+#         v
+#      dev_net0			(QEMU internal switch)
+#         |
+#         +--> tap0		(host TAP interface)
+#         |
+#         +--> dump.dat (packet capture)
+
+QEMUOPTS += -netdev tap,id=devnet0,ifname=tap0,script=no,downscript=no
+QEMUOPTS += -device e1000,netdev=devnet0,mac=52:54:00:12:34:56
+QEMUOPTS += -object filter-dump,id=devnet0,netdev=devnet0,file=dump.dat
+
 define POST_CHECKOUT
 #!/bin/sh -x
 make clean

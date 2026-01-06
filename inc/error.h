@@ -28,13 +28,23 @@ enum {
     E_NOT_EXEC = 18,    /* File not a valid executable */
     E_NOT_SUPP = 19,    /* Operation not supported */
     // ITASK: Your code here
+    // Ethernet error codes
     E_BAD_ETH_TYPE          = 20,   /* bad Ethernet type */
 
-    E_UNS_IP_VER            = 21,   /* IP version not unsupported */
+    // IP error codes
+    E_UNS_IP_VER            = 21,   /* IP version not supported */
     E_BAD_IP_PROTO          = 22,   /* bad IP proto */
     E_INV_IP_CHECKSUM       = 23,   /* invalid IP checksum */
-    E_UNS_ICMP_TYPE 	    = 24,
-    E_INV_ICMP_CODE 	    = 25, /* Invalid icmp message code */
+
+    // ARP error codes
+    E_UNS_ARP_HRDWR_TYPE    = 24,   /* ARP harware type not supported */
+    E_UNS_ARP_PROTO         = 25,   /* ARP proto not supported */
+    E_UNS_ARP_OPCODE        = 26,   /* ARP opcode not supported */
+
+    // ICMP error codes
+    E_UNS_ICMP_TYPE         = 27,   /* ICMP type not supported */
+    E_INV_ICMP_CODE         = 28,   /* invalid ICMP code */
+
     MAXERROR
 };
 

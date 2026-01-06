@@ -39,11 +39,22 @@ static const char *const error_string[MAXERROR] = {
         [E_NOT_EXEC] = "file is not a valid executable",
         [E_NOT_SUPP] = "operation not supported",
         // ITASK: Your code here
+        // Ethernet error codes
         [E_BAD_ETH_TYPE]            = "bad Ethernet type",
 
-        [E_UNS_IP_VER]              = "IP version not unsupported",
+        // IP error codes
+        [E_UNS_IP_VER]              = "IP version not supported",
         [E_BAD_IP_PROTO]            = "bad IP proto",
         [E_INV_IP_CHECKSUM]         = "invalid IP checksum",
+
+        // ARP error codes
+        [E_UNS_ARP_HRDWR_TYPE]      = "ARP harware type not supported",
+        [E_UNS_ARP_PROTO]           = "ARP proto not supported",
+        [E_UNS_ARP_OPCODE]          = "ARP opcode not supported",
+
+        // ICMP error codes
+        [E_UNS_ICMP_TYPE]           = "ICMP type not supported",
+        [E_INV_ICMP_CODE]           = "invalid ICMP code",
 };
 
 /*

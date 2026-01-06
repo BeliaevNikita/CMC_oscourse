@@ -6,7 +6,7 @@
 
 #include <kern/inet.h>
 #include <kern/ethernet.h>
-// #include <kern/icmp.h>
+#include <kern/icmp.h>
 // #include <kern/udp.h>
 
 uint32_t
@@ -50,6 +50,7 @@ ip_checksum(void *vdata, size_t length) {
 
 int
 ip_send(struct ip_pkt *pkt, uint16_t length) {
+    // if (trace_packet_processing) cprintf("Sending IP packet\n");
     uint16_t id = ++packet_id;
 
     struct ip_hdr *hdr = &pkt->hdr;
@@ -61,6 +62,7 @@ ip_send(struct ip_pkt *pkt, uint16_t length) {
     hdr->ip_ttl             = IP_TTL;
     hdr->ip_header_checksum = ip_checksum((void *) pkt, IP_HEADER_LEN);
 
+    // Dispatch to lower level protocol
     struct eth_hdr e_hdr;
     e_hdr.eth_type = htons(ETH_TYPE_IP);
 
@@ -70,10 +72,10 @@ ip_send(struct ip_pkt *pkt, uint16_t length) {
 
 int
 ip_recv(struct ip_pkt *pkt) {
-    int res = eth_recv((void *) pkt);
-    if (res < 0) {
-        return res;
-    }
+    // int res = eth_recv((void *) pkt);
+    // if (res < 0) {
+    //     return res;
+    // }
 
     struct ip_hdr *hdr = &pkt->hdr;
     if (hdr->ip_verlen != IP_VER_LEN) {
@@ -89,8 +91,9 @@ ip_recv(struct ip_pkt *pkt) {
     // Dispatch to higher level protocols
     enum IPProto current_protocol = hdr->ip_protocol;
     switch (current_protocol) {
-        // case IP_PROTO_ICMP: {
-        // }
+        case IP_PROTO_ICMP: {
+            return icmp_echo_reply(pkt);
+        }
         // case IP_PROTO_TCP: {
         // }
         // case IP_PROTO_UDP: {

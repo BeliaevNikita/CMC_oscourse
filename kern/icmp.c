@@ -9,10 +9,10 @@
 
 int
 icmp_echo_reply(struct ip_pkt* pkt) {
-    if (trace_packet_processing) 
-    {
-        cprintf("Processing ICMP packet\n");
-    }
+    // if (trace_packet_processing) 
+    // {
+    //     cprintf("Processing ICMP packet\n");
+    // }
     struct icmp_pkt icmp_packet;
     int size = ntohs(pkt->hdr.ip_total_length) - IP_HEADER_LEN;
     memcpy((void*)&icmp_packet, (void*)pkt->data, size);
