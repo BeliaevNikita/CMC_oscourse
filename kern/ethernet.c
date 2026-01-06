@@ -1,7 +1,9 @@
-#include <kern/e1000.h>
 #include <kern/ethernet.h>
-#include <inc/string.h>
+#include <kern/e1000.h>
 #include <kern/inet.h>
+#include <kern/arp.h>
+
+#include <inc/string.h>
 #include <inc/error.h>
 #include <inc/assert.h>
 
@@ -49,6 +51,11 @@ eth_recv(void *data) {
     switch (hdr.eth_type) {
         // case ETH_TYPE_IP: {
         // }
+        case ETH_TYPE_ARP: {
+            if (arp_resolve(data) < 0) {
+                return -1;
+            }
+        }
         default: {
             // return -E_BAD_ETH_TYPE;
         }
