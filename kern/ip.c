@@ -50,6 +50,7 @@ ip_checksum(void *vdata, size_t length) {
 
 int
 ip_send(struct ip_pkt *pkt, uint16_t length) {
+    // if (trace_packet_processing) cprintf("Sending IP packet\n");
     uint16_t id = ++packet_id;
 
     struct ip_hdr *hdr = &pkt->hdr;
@@ -61,6 +62,7 @@ ip_send(struct ip_pkt *pkt, uint16_t length) {
     hdr->ip_ttl             = IP_TTL;
     hdr->ip_header_checksum = ip_checksum((void *) pkt, IP_HEADER_LEN);
 
+    // Dispatch to lower level protocol
     struct eth_hdr e_hdr;
     e_hdr.eth_type = htons(ETH_TYPE_IP);
 

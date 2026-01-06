@@ -14,11 +14,16 @@ const uint8_t hard_code_destination_mac[6] = {0x3a, 0xbe, 0x6d, 0xa0, 0xaf, 0x00
 
 int
 eth_send(struct eth_hdr *hdr, void *data, size_t len) {
+    // if (trace_packet_processing) cprintf("Sending Ethernet packet\n");
     assert(len <= ETH_MTU);
 
     // force substitute just in case
     memcpy((void*) hdr->eth_source_mac, qemu_mac, sizeof(hdr->eth_source_mac));
-    memcpy((void*) hdr->eth_destination_mac, hard_code_destination_mac, sizeof(hdr->eth_destination_mac));
+    // memcpy((void*) hdr->eth_destination_mac, hard_code_destination_mac, sizeof(hdr->eth_destination_mac));
+    if (hdr->eth_type == htons(ETH_TYPE_IP)) {
+        struct ip_hdr *ip_header = &(((struct ip_pkt *) data)->hdr);
+        memcpy(hdr->eth_destination_mac, get_mac_by_ip(ip_header->ip_destination_address), 6);
+    }
 
     char buf[ETH_FRAME_MAX_LEN];
     hdr->eth_type = htons(hdr->eth_type);
